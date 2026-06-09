@@ -63,8 +63,8 @@ describe('detectOverusedIntensifiers', () => {
   it('flags "delve"', () => {
     assertFires(runClientDetectors('Let us delve into the details.'), 'overused-intensifiers')
   })
-  it('flags "robust"', () => {
-    assertFires(detectOverusedIntensifiers('We built a robust framework.'), 'overused-intensifiers')
+  it('flags "robust" (via NLP layer)', () => {
+    assertFires(runClientDetectors('We built a robust framework.'), 'overused-intensifiers')
   })
   it('flags "nuanced"', () => {
     assertFires(detectOverusedIntensifiers('This requires a nuanced approach.'), 'overused-intensifiers')

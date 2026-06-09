@@ -10,7 +10,7 @@
 
 import nlp from './nlpInstance'
 import type { Violation } from '../types'
-import { VERB_INTENSIFIERS } from './wordPatterns'
+import { VERB_INTENSIFIERS, ADJECTIVE_INTENSIFIERS, ADJECTIVE_PERMITTED_FOLLOWING, CONTEXT_SENSITIVE_ADVERBS } from './wordPatterns'
 
 // compromise .json({offset:true, tags:true}) shapes
 interface TermJson {
@@ -71,6 +71,11 @@ const TRIGGER_STEMS = [
   ...VERB_INTENSIFIERS.map(toStemPrefix),
   // "in a [adj] way/manner/sense" phrase detector (exact words, no conjugation)
   'way', 'manner', 'sense', 'fashion', 'regard',
+  // Adjective intensifiers (context-sensitive): toStemPrefix strips trailing 'e',
+  // so 'dynamic' → 'dynami' which prefix-matches dynamic/dynamics/dynamically.
+  ...ADJECTIVE_INTENSIFIERS.map(toStemPrefix),
+  // Context-sensitive adverbs: no conjugation, add exact words.
+  ...CONTEXT_SENSITIVE_ADVERBS,
 ]
 
 // Single fast regex used to pre-filter text before any NLP work
@@ -272,6 +277,111 @@ export function detectVerbIntensifierForms(text: string): Violation[] {
   return violations
 }
 
+// Semi-copular verbs that introduce predicate adjectives but may not be tagged
+// as #Copula in compromise/two's two-tier POS tagger. #Copula covers the core
+// set (is, are, was, were, am, be, been, being); the explicit list below adds
+// extended linking verbs that are reliable enough to flag slop adjectives after.
+const SEMI_COPULA_PAT = 'remain|remains|remained|seem|seems|seemed|appear|appears|appeared|become|becomes|became|look|looks|looked|feel|feels|felt|sound|sounds'
+
+/**
+ * Detect adjective intensifiers (vital, robust, dynamic, fundamental) only in
+ * slop-indicative positions:
+ *   1. Predicate: "(#Copula|SEMI_COPULA) #Adverb? [word]" — "is vital", "remains dynamic", "is highly robust"
+ *   2. Attributive: "[word] #Noun" — "a vital role", "a dynamic approach"
+ *      with per-adjective compound exclusions (vital signs, dynamic programming, etc.)
+ *
+ * suppressUnsafeDeletions in index.ts handles predicate cases automatically
+ * (sets suggestedChange: null when a linking verb precedes the violation).
+ */
+function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
+  const violations: Violation[] = []
+  for (const word of ADJECTIVE_INTENSIFIERS) {
+    const permitted = ADJECTIVE_PERMITTED_FOLLOWING[word] ?? []
+
+    // Build permitted compound positions via exact text matching — more reliable than
+    // relying on #Noun tagging for domain-specific words like "theorem" or "signs"
+    // that may not be in compromise's lexicon.
+    // e.g. "vital (signs|organs|...)" matches regardless of how "signs" is tagged.
+    const permittedPositions = new Set<number>()
+    if (permitted.length > 0) {
+      doc.match(`${word} (${permitted.join('|')})`).forEach((m: NlpDoc) => {
+        const term = (m.json({ offset: true }) as MatchJson[])[0]?.terms?.[0]
+        if (term?.offset) permittedPositions.add(term.offset.start)
+      })
+    }
+
+    // Case 1: predicate — "(#Copula|semi-copula) #Adverb? [word]"
+    // #Adverb? allows optional degree adverb ("is highly robust", "was quite vital").
+    // Use slice(-1)[0] to get the last term (adjective), since adverb may or may not be present.
+    // Skip if adjective's position is a permitted compound (e.g. "are fundamental rights").
+    doc.match(`(#Copula|${SEMI_COPULA_PAT}) #Adverb? ${word}`).forEach((m: NlpDoc) => {
+      const phrase = (m.json({ offset: true, tags: true }) as MatchJson[])[0]
+      const term = phrase?.terms?.slice(-1)[0]  // last term = adjective
+      if (!term?.offset) return
+      if (permittedPositions.has(term.offset.start)) return
+      const { start, length } = term.offset
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: term.text })
+    })
+
+    // Case 2: attributive — "[word] #Noun", flag the adjective (terms[0]).
+    // Skip if the position is a permitted compound (already identified above).
+    doc.match(`${word} #Noun`).forEach((m: NlpDoc) => {
+      const phrase = (m.json({ offset: true, tags: true }) as MatchJson[])[0]
+      const terms = phrase?.terms ?? []
+      if (terms.length < 2) return
+      const [adjTerm] = terms
+      if (!adjTerm?.offset) return
+      if (permittedPositions.has(adjTerm.offset.start)) return
+      const { start, length } = adjTerm.offset
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: adjTerm.text })
+    })
+  }
+  return violations
+}
+
+/**
+ * Detect context-sensitive adverbs (quietly, deeply, remarkably, clearly) only
+ * when they signal slop, not legitimate adverb-verb modification:
+ *   FLAG: [adverb] #Adjective — "quietly powerful", "clearly superior"
+ *   FLAG: [adverb] #Gerund   — "deeply concerning" (gerund used as adjective)
+ *   FLAG: sentence-initial   — "Clearly, this approach..." (offset 0 in chunk)
+ *   SKIP: [adverb] #Verb (non-gerund) — "quietly left", "clearly stated"
+ */
+function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[] {
+  const candidates: Violation[] = []
+  for (const adverb of CONTEXT_SENSITIVE_ADVERBS) {
+    // Modifying an adjective: "quietly powerful", "clearly superior"
+    candidates.push(...firstTermViolations(doc, `${adverb} #Adjective`, ruleId))
+    // Gerund used as adjective: "deeply concerning", "remarkably unsettling"
+    // Compromise may tag -ing forms as #Gerund rather than #Adjective in some contexts.
+    candidates.push(...firstTermViolations(doc, `${adverb} #Gerund`, ruleId))
+    // Sentence-initial: adverb at chunk position 0 (extractSentenceAt strips leading whitespace).
+    // Can't use "[adverb] ," because compromise two-tier may not match punctuation in patterns.
+    doc.match(adverb).forEach((m: NlpDoc) => {
+      const term = (m.json({ offset: true }) as MatchJson[])[0]?.terms?.[0]
+      if (!term?.offset || term.offset.start !== 0) return
+      candidates.push({ ruleId, startIndex: 0, endIndex: term.offset.length, matchedText: term.text })
+    })
+  }
+  // Collect positions where adverb precedes a non-gerund action verb — those are legitimate.
+  // Gerunds are excluded from this suppression because they often act as adjectives
+  // ("deeply concerning", "quietly revolutionary") rather than action verbs.
+  const beforeActionVerb = new Set<number>()
+  for (const adverb of CONTEXT_SENSITIVE_ADVERBS) {
+    doc.match(`${adverb} #Verb`).forEach((m: NlpDoc) => {
+      const matches = m.json({ offset: true, tags: true }) as MatchJson[]
+      if (!matches.length) return
+      const terms = matches[0].terms ?? []
+      const adverbTerm = terms[0]
+      const verbTerm = terms[1]
+      if (!adverbTerm?.offset) return
+      if (verbTerm?.tags?.includes('Gerund')) return  // gerund → may be adjective, don't suppress
+      beforeActionVerb.add(adverbTerm.offset.start)
+    })
+  }
+  return candidates.filter(v => !beforeActionVerb.has(v.startIndex))
+}
+
 /** Run all NLP sub-detectors on a pre-parsed doc; positions are chunk-relative */
 function runNlpDetectors(doc: NlpDoc, chunkText: string): Violation[] {
   const v: Violation[] = []
@@ -279,6 +389,8 @@ function runNlpDetectors(doc: NlpDoc, chunkText: string): Violation[] {
   v.push(...verbViolations(doc, OVERUSED_VERB_RE, 'overused-intensifiers'))
   v.push(...verbViolations(doc, /^craft/i, 'elevated-register'))
   v.push(...inAWayViolations(doc, chunkText, 'overused-intensifiers'))
+  v.push(...detectAdjectiveIntensifiers(doc, 'overused-intensifiers'))
+  v.push(...detectContextSensitiveAdverbs(doc, 'filler-adverbs'))
   return v
 }
 

@@ -636,3 +636,149 @@ describe('detectShortHookParagraph', () => {
     expect(vs).toHaveLength(0)
   })
 })
+
+// ── detectAdjectiveIntensifiers ───────────────────────────────────────────────
+
+describe('detectAdjectiveIntensifiers — predicate position (should flag)', () => {
+  it('flags "vital" after "is"', () => {
+    const vs = nlpViolations('The distinction is vital for enterprises.')
+    expect(vs.some(v => v.matchedText === 'vital' && v.ruleId === 'overused-intensifiers')).toBe(true)
+  })
+  it('flags "vital" after "remains"', () => {
+    const vs = nlpViolations('This approach remains vital in modern contexts.')
+    expect(vs.some(v => v.matchedText === 'vital')).toBe(true)
+  })
+  it('flags "robust" after "seems"', () => {
+    const vs = nlpViolations('The architecture seems robust under load.')
+    expect(vs.some(v => v.matchedText === 'robust')).toBe(true)
+  })
+  it('flags "dynamic" after "was"', () => {
+    const vs = nlpViolations('The market was dynamic throughout the decade.')
+    expect(vs.some(v => v.matchedText === 'dynamic')).toBe(true)
+  })
+  it('flags "fundamental" after "are"', () => {
+    const vs = nlpViolations('These principles are fundamental to the approach.')
+    expect(vs.some(v => v.matchedText === 'fundamental')).toBe(true)
+  })
+  it('"is vital" → suggestedChange: null (predicate deletion suppressed)', () => {
+    const violations = runClientDetectors('The distinction is vital for enterprises.')
+    const v = violations.find(x => x.matchedText === 'vital')
+    expect(v).toBeDefined()
+    expect(v!.suggestedChange).toBe(null)
+  })
+})
+
+describe('detectAdjectiveIntensifiers — attributive before generic noun (should flag)', () => {
+  it('flags "vital" before generic noun', () => {
+    const vs = nlpViolations('It plays a vital role in governance.')
+    expect(vs.some(v => v.matchedText === 'vital')).toBe(true)
+  })
+  it('flags "robust" before generic noun', () => {
+    const vs = nlpViolations('We need a robust framework for this.')
+    expect(vs.some(v => v.matchedText === 'robust')).toBe(true)
+  })
+  it('flags "dynamic" before generic noun', () => {
+    const vs = nlpViolations('They built a dynamic ecosystem over time.')
+    expect(vs.some(v => v.matchedText === 'dynamic')).toBe(true)
+  })
+  it('flags "fundamental" before generic noun', () => {
+    const vs = nlpViolations('It represents a fundamental shift in thinking.')
+    expect(vs.some(v => v.matchedText === 'fundamental')).toBe(true)
+  })
+  it('"a vital role" → deletion allowed (attributive, not predicate)', () => {
+    const violations = runClientDetectors('Speed plays a vital role in the system.')
+    const v = violations.find(x => x.matchedText === 'vital')
+    expect(v).toBeDefined()
+    expect(v!.suggestedChange).not.toBe(null)
+  })
+})
+
+describe('detectAdjectiveIntensifiers — compound exclusions (should NOT flag)', () => {
+  it('does not flag "vital signs"', () => {
+    const vs = nlpViolations("The patient's vital signs were stable.")
+    expect(vs.some(v => v.matchedText === 'vital')).toBe(false)
+  })
+  it('does not flag "vital organs"', () => {
+    const vs = nlpViolations('Protecting vital organs is the priority.')
+    expect(vs.some(v => v.matchedText === 'vital')).toBe(false)
+  })
+  it('does not flag "robust security"', () => {
+    const vs = nlpViolations('The system requires robust security protocols.')
+    expect(vs.some(v => v.matchedText === 'robust')).toBe(false)
+  })
+  it('does not flag "robust authentication"', () => {
+    const vs = nlpViolations('OAuth provides robust authentication out of the box.')
+    expect(vs.some(v => v.matchedText === 'robust')).toBe(false)
+  })
+  it('does not flag "dynamic programming"', () => {
+    const vs = nlpViolations('They used dynamic programming to solve the problem.')
+    expect(vs.some(v => v.matchedText === 'dynamic')).toBe(false)
+  })
+  it('does not flag "dynamic range"', () => {
+    const vs = nlpViolations('The camera has impressive dynamic range.')
+    expect(vs.some(v => v.matchedText === 'dynamic')).toBe(false)
+  })
+  it('does not flag "fundamental theorem"', () => {
+    const vs = nlpViolations('The fundamental theorem of calculus connects derivatives and integrals.')
+    expect(vs.some(v => v.matchedText === 'fundamental')).toBe(false)
+  })
+  it('does not flag "fundamental rights"', () => {
+    const vs = nlpViolations('These are fundamental rights under international law.')
+    expect(vs.some(v => v.matchedText === 'fundamental')).toBe(false)
+  })
+})
+
+// ── detectContextSensitiveAdverbs ─────────────────────────────────────────────
+
+describe('detectContextSensitiveAdverbs — adverb + adjective (should flag)', () => {
+  it('flags "quietly" before adjective', () => {
+    const vs = nlpViolations('The team was quietly powerful in the fourth quarter.')
+    expect(vs.some(v => v.matchedText === 'quietly' && v.ruleId === 'filler-adverbs')).toBe(true)
+  })
+  it('flags "deeply" before adjective', () => {
+    const vs = nlpViolations('This trend is deeply concerning to analysts.')
+    expect(vs.some(v => v.matchedText === 'deeply')).toBe(true)
+  })
+  it('flags "remarkably" before adjective', () => {
+    const vs = nlpViolations('The results were remarkably consistent across trials.')
+    expect(vs.some(v => v.matchedText === 'remarkably')).toBe(true)
+  })
+  it('flags "clearly" before adjective', () => {
+    const vs = nlpViolations('The approach is clearly superior to the alternatives.')
+    expect(vs.some(v => v.matchedText === 'clearly')).toBe(true)
+  })
+})
+
+describe('detectContextSensitiveAdverbs — sentence-initial comma (should flag)', () => {
+  it('flags "clearly," at sentence start', () => {
+    const vs = nlpViolations('Clearly, this approach needs refinement.')
+    expect(vs.some(v => v.matchedText.toLowerCase() === 'clearly')).toBe(true)
+  })
+  it('flags "remarkably," at sentence start', () => {
+    const vs = nlpViolations('Remarkably, the data showed no variation at all.')
+    expect(vs.some(v => v.matchedText.toLowerCase() === 'remarkably')).toBe(true)
+  })
+  it('flags "quietly," at sentence start', () => {
+    const vs = nlpViolations('Quietly, the policy shifted over several months.')
+    expect(vs.some(v => v.matchedText.toLowerCase() === 'quietly')).toBe(true)
+  })
+})
+
+describe('detectContextSensitiveAdverbs — before action verb (should NOT flag)', () => {
+  it('does not flag "quietly" before verb', () => {
+    const vs = nlpViolations('She quietly closed the door behind her.')
+    expect(vs.some(v => v.matchedText === 'quietly')).toBe(false)
+  })
+  it('does not flag "deeply" before verb', () => {
+    const vs = nlpViolations('He deeply regrets the decision.')
+    expect(vs.some(v => v.matchedText === 'deeply')).toBe(false)
+  })
+  it('does not flag "clearly" before verb', () => {
+    const vs = nlpViolations('She clearly stated her position at the meeting.')
+    expect(vs.some(v => v.matchedText === 'clearly')).toBe(false)
+  })
+  it('does not flag "remarkably" before verb', () => {
+    const vs = nlpViolations('The project remarkably succeeded against all odds.')
+    expect(vs.some(v => v.matchedText === 'remarkably')).toBe(false)
+  })
+})

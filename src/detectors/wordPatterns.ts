@@ -17,17 +17,18 @@ function findAll(text: string, pattern: RegExp, ruleId: string): Violation[] {
 }
 
 const INTENSIFIERS = [
-  'crucial', 'vital', 'robust', 'comprehensive', 'fundamental',
+  'crucial', 'comprehensive',
   'arguably', 'straightforward', 'noteworthy', 'realm', 'landscape',
   'tapestry', 'multifaceted', 'nuanced', 'pivotal',
   'unprecedented', 'paradigm', 'synergy',
-  'holistic', 'transformative', 'cutting-edge', 'innovative', 'dynamic',
+  'holistic', 'transformative', 'cutting-edge', 'innovative',
   // From "words to watch" list
   'enduring', 'interplay', 'intricate', 'intricacies',
   'meticulous', 'meticulously', 'valuable', 'vibrant',
   // From slopbuster/slopsquid: additional analytical prose markers
   'paramount', 'overarching', 'actionable', 'seamless', 'salient',
   'ubiquitous', 'myriad', 'aforementioned', 'quintessential',
+  // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
 ]
 
 // Multi-word phrases that are overused LLM clichés
@@ -39,6 +40,25 @@ const INTENSIFIER_PHRASES = [
   'key turning point',
   'setting the stage',
 ]
+
+// Adjective intensifiers moved to NLP layer: flagged only in predicate position
+// (after copula) or attributive before non-excluded nouns. These words have
+// legitimate technical uses in specific compounds (vital signs, dynamic programming).
+export const ADJECTIVE_INTENSIFIERS = ['vital', 'robust', 'dynamic', 'fundamental']
+
+// Per-adjective permitted following nouns. "[word] #Noun" is suppressed when the
+// noun (lowercase) appears in this list — established domain compounds where the
+// word carries a specialized, non-slop meaning.
+export const ADJECTIVE_PERMITTED_FOLLOWING: Record<string, string[]> = {
+  vital:       ['signs', 'sign', 'organs', 'organ', 'statistics', 'records', 'record', 'capacity', 'functions', 'function', 'force', 'forces'],
+  robust:      ['security', 'authentication', 'encryption'],
+  dynamic:     ['programming', 'range', 'memory', 'allocation', 'dispatch', 'typing'],
+  fundamental: ['theorem', 'theorems', 'rights', 'frequency', 'frequencies', 'forces', 'force', 'particles', 'particle'],
+}
+
+// Adverbs moved to NLP layer: flagged only when modifying an adjective or
+// appearing sentence-initial before a comma — NOT when modifying an action verb.
+export const CONTEXT_SENSITIVE_ADVERBS = ['quietly', 'deeply', 'remarkably', 'clearly']
 
 // Verb-type intensifiers — moved to NLP detector so deletion is replaced
 // with a correctly-conjugated simpler synonym (deleting a verb breaks the sentence)
@@ -96,9 +116,9 @@ const ELEVATED_REGISTER: [string, string | null][] = [
 const FILLER_ADVERBS = [
   'importantly', 'essentially', 'fundamentally', 'ultimately',
   'inherently', 'particularly', 'increasingly', 'certainly',
-  'undoubtedly', 'obviously', 'clearly', 'simply', 'basically',
+  'undoubtedly', 'obviously', 'simply', 'basically',
   'quite', 'very', 'really', 'truly', 'genuinely',
-  'quietly', 'deeply', 'remarkably',
+  // quietly, deeply, remarkably, clearly moved to NLP layer (context-sensitive)
 ]
 
 const METAPHOR_CRUTCHES = [
