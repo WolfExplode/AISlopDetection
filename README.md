@@ -92,8 +92,17 @@ The editor is a `contenteditable` div with a custom undo/redo stack — native b
 
 ## Source rules
 
-The pattern taxonomy is based on 
-[LLM_PROSE_TELLS.md](https://git.eeqj.de/sneak/prompts/src/branch/main/prompts/LLM_PROSE_TELLS.md), [Wikipedia: Signs of AI Writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing)
-[tropes.md](https://tropes.fyi/tropes-md)
+The pattern taxonomy draws from several sources:
 
-... futher expand 
+- [LLM_PROSE_TELLS.md](https://git.eeqj.de/sneak/prompts/src/branch/main/prompts/LLM_PROSE_TELLS.md) (sneak, MIT) — the primary rule catalogue
+- [Wikipedia: Signs of AI Writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (CC BY-SA 4.0)
+- [tropes.md](https://tropes.fyi/tropes-md)
+
+## Related tools
+
+- [eqbench/slop-score](https://github.com/sam-paech/slop-score) — in-browser slop scorer with a frequency-ratio word list built against human writing baselines; live at [eqbench.com/slop-score.html](https://eqbench.com/slop-score.html)
+- [sam-paech/slop-forensics](https://github.com/sam-paech/slop-forensics) — dataset generation and analysis toolkit for profiling LLM slop across models; produces the canonical slop lists used by slop-score
+- [gabelul/slopbuster](https://github.com/gabelul/slopbuster) — Claude Code / Codex skill that pipes prose through a two-pass audit (pattern removal + voice injection)
+- [QRY91/slopsquid](https://github.com/QRY91/slopsquid) — Go CLI that scans files and websites using frequency-ratio data from the Antislop paper
+- [iwalton3/sycofact](https://huggingface.co/iwalton3/sycofact) — Gemma 3 4B fine-tune for detecting sycophancy and unsafe AI outputs
+- Paech et al., 2025 — [Antislop: A Comprehensive…](https://arxiv.org/abs/2501.01345) — the research paper underlying the frequency-ratio approach
