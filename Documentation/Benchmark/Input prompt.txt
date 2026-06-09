@@ -1,0 +1,32 @@
+This text contains journal scribblings a past experience in a teaching hospital. Revisiting this serves as a good learning opportunity for me. Help me better understand by giving your opinions and perspective. I'll present each section of my journal notes and we can discuss and learn from the events that transpired. 
+
+> [!Personal anecdote]+
+> I was in the resident call room when word came in about the commotion downtown. The concert venue was around 15 minutes from the hospital. I had been observing a livestream of the concert when an individual leapt out from the audience onto the stage. The man suddenly lunged at her. She managed to grab his arm, slamming their head into the ground. 
+> 
+> The performer collapsed onto the assailant restraining them until security personnel arrived to assist. Afterwards, she got up and gestured towards the audience, which reciprocated in a loud applause but she was still clutching her left chest. After examining her hand, and subsequently wiping it against her dress, it left a visible red stain. The audience applause quickly subsided. She urgently exited stage without any assistance, appearing psychologically distressed. She ran, preserving a normal gait and motor function. 
+> 
+> From a clinical perspective, several features raised concern for potential thoracic trauma: 
+> - anatomical location
+> - presence of blood
+> - mechanism of injury (close-quarters altercation with a potentially armed assailant).
+> 
+> However, in my opinion, the patient's preserved mobility and upright posture provided initial reassurance against penetrating cardiac injury. 
+> 
+> Approximately thirty minutes later, the trauma pager activated: single stab wound to the chest, ETA four minutes. The patient's identity confirmed she was the same individual from the livestream.
+> 
+> The following report documented the clinical presentation, diagnostic workup, imaging findings, and operative management of this patient.
+
+The following report documents the clinical presentation, diagnostic workup, imaging findings, and operative management of this patient. I will not provide any identifying details, although this is just my personal journal entry on the night of the incident. 
+## Journal entry
+Presenting to the emergency room approximately 36 minutes after the incident, M.H. was minimally symptomatic. 24-year-old woman with a stab wound at the fifth intercostal space. The patient was ambulatory, hemodynamically stable, and in no acute distress.
+
+The patient entered the emergency department accompanied by several individuals, ambulatory upon arrival. She was energetic and lively. She was still in the same outfit, now a smear more red than white on the left side. Her skin was flush, not pale. She had steady breathing, no shallow breaths or wincing. Reviewing the patient records showed no previous history of medical illness, hospitalizations, or surgical interventions. 
+
+Bedside telemetry at time of examination showed steady sinus rhythm at 58 bpm. Blood pressure at 127/71.  Vital signs were stable with no visible signs of acute distress or agitation despite the reported mechanism of injury.
+On cardiac auscultation, the attending noted:
+- Sinus bradycardia but with a defined peripheral pulse.
+- S1 and S2 were distinct and loud. 
+- A soft blowing systolic ejection murmur could also be heard. This crescendo-decrescendo murmur is heard most clearly near the left upper sternal border. Review of prior medical records revealed documentation of a soft systolic ejection murmur on previous examinations.
+- A clear and pronounced respiratory sinus arrhythmia. 
+
+Before I tell you how the medical staff handled this case, as a clinician, what would you do? Explain your thoughts based on our observations of the patient. 
