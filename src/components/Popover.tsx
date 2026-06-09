@@ -104,6 +104,7 @@ export default function Popover({ state, onClose, onApply, onNextRule, onPrevRul
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         const target = e.target as HTMLElement
         if (target.tagName === 'MARK' || target.closest('mark')) return
+        if (target.closest('[data-rules]')) return
         onClose()
       }
     }

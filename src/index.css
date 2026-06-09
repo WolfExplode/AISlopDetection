@@ -23,6 +23,19 @@ mark {
   outline: none;
 }
 
+/* CM6 editor container: fill the wrapper, no extra box */
+.cm-editor-container {
+  display: flex;
+  flex-direction: column;
+}
+.cm-editor-container .cm-editor {
+  flex: 1;
+}
+/* Prevent CM6 from adding its own scrollbar */
+.cm-editor-container .cm-scroller {
+  overflow: visible !important;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -64,8 +77,8 @@ mark {
   .editor-scroll {
     padding: 32px 20px 60px;
   }
-  /* Remove rewrite button indent — no hover on touch, symmetry matters more */
-  .editor-content {
+  /* Remove rewrite button indent on mobile */
+  .cm-editor-container .cm-content {
     padding-left: 8px !important;
   }
 }

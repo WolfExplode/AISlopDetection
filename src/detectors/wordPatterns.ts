@@ -548,34 +548,41 @@ export function detectListicleInstinct(text: string): Violation[] {
   const violations: Violation[] = []
   const MAGIC_COUNTS = new Set([3, 5, 7, 10])
 
-  // Numbered lists
+  // Numbered lists — highlight only the first number marker (e.g. "1.")
   const numberedListRe = /(?:^|\n)(\s*\d+[.)]\s+[^\n]+)(\n\s*\d+[.)]\s+[^\n]+){2,}/gm
   let m: RegExpExecArray | null
   const re1 = new RegExp(numberedListRe.source, 'gm')
   while ((m = re1.exec(text)) !== null) {
     const items = m[0].trim().split('\n').filter(l => /^\s*\d+[.)]\s/.test(l))
     if (MAGIC_COUNTS.has(items.length)) {
+      // Find the first marker character within the match
+      const markerMatch = /\d+[.)]/.exec(m[0])
+      const markerOffset = markerMatch ? markerMatch.index : 0
+      const markerStart = m.index + markerOffset
       violations.push({
         ruleId: 'listicle-instinct',
-        startIndex: m.index,
-        endIndex: m.index + m[0].length,
-        matchedText: m[0],
+        startIndex: markerStart,
+        endIndex: markerStart + (markerMatch ? markerMatch[0].length : 1),
+        matchedText: markerMatch ? markerMatch[0] : m[0][0],
         explanation: `Numbered list with exactly ${items.length} items`,
       })
     }
   }
 
-  // Bulleted lists
+  // Bulleted lists — highlight only the first bullet marker character
   const bulletRe = /(?:^|\n)(\s*[-*•]\s+[^\n]+)(\n\s*[-*•]\s+[^\n]+){2,}/gm
   const re2 = new RegExp(bulletRe.source, 'gm')
   while ((m = re2.exec(text)) !== null) {
     const items = m[0].trim().split('\n').filter(l => /^\s*[-*•]\s/.test(l))
     if (MAGIC_COUNTS.has(items.length)) {
+      const markerMatch = /[-*•]/.exec(m[0])
+      const markerOffset = markerMatch ? markerMatch.index : 0
+      const markerStart = m.index + markerOffset
       violations.push({
         ruleId: 'listicle-instinct',
-        startIndex: m.index,
-        endIndex: m.index + m[0].length,
-        matchedText: m[0],
+        startIndex: markerStart,
+        endIndex: markerStart + 1,
+        matchedText: markerMatch ? markerMatch[0] : m[0][0],
         explanation: `Bullet list with exactly ${items.length} items`,
       })
     }
@@ -857,8 +864,20 @@ export function detectVagueAttribution(text: string): Violation[] {
 }
 
 export function detectBoldFirstBullets(text: string): Violation[] {
-  const re = /^[ \t]*[-*•][ \t]+\*\*[^*\n]+\*\*/gm
-  return findAll(text, re, 'bold-first-bullets')
+  // Match the full pattern to confirm it's bold-first, but highlight only the bullet marker
+  const re = /^([ \t]*)([-*•])([ \t]+\*\*[^*\n]+\*\*)/gm
+  const violations: Violation[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const bulletStart = m.index + m[1].length
+    violations.push({
+      ruleId: 'bold-first-bullets',
+      startIndex: bulletStart,
+      endIndex: bulletStart + 1,
+      matchedText: m[2],
+    })
+  }
+  return violations
 }
 
 export function detectUnicodeArrows(text: string): Violation[] {

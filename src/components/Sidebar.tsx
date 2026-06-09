@@ -83,6 +83,16 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                 transition: 'width 0.3s ease, background 0.3s ease',
               }} />
             </div>
+            {wordCount < 75 && (
+              <div style={{
+                marginTop: '6px', fontSize: '11px', color: '#b45309',
+                fontFamily: 'sans-serif', lineHeight: '1.4',
+                background: '#fffbeb', border: '1px solid #fde68a',
+                borderRadius: '4px', padding: '5px 8px',
+              }}>
+                Score is more reliable with 75+ words ({wordCount} so far).
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
               <span style={{ fontSize: '11px', color: '#aaa', fontFamily: 'sans-serif' }}>Slop score</span>
               <button

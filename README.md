@@ -4,13 +4,28 @@ A browser-based editor that detects the rhetorical and structural tells of LLM-g
 
 **[https://awnist.com/slop-cop](https://awnist.com/slop-cop)**
 
+
+This repo is a combination of many slop detection tools. Built off the backbone of [Slop Cop](https://github.com/awnist/slop-cop)
+
+
 ![Screenshot](screenshot.png)
 
-## Why this exists
+## What is "Slop"? 
 
-LLMs trained on human feedback develop characteristic writing tics. They hedge reflexively, open with throat-clearing, reach for the same dozen intensifiers, structure arguments as `not X, but Y`, and inflate ordinary points to world-historical significance. These patterns are learnable and detectable. Slop Cop makes them visible so writers can decide whether to keep or cut them.
+Just use the tool and find out. You know it when you see it. Unless... you are a filthy [clanker](https://en.wikipedia.org/wiki/Clanker). Slop is the lack of humanity in the text. 
 
-This is not a plagiarism detector. The question isn't whether text was written by an AI — it's whether the text *reads* like it was. That's the thing that actually matters.
+"Slop" is the way things are phrased. It just sounds like AI.
+
+## Why would we want to detect slop?
+
+As a writer, I'm getting tired of reading slop. Of thinking in slop. It's the way every thought is processed. The way the AI speaks. I've devloped this tool as a way to quantifiably detect and label slop. In a objective way. Something I can point to and say Look! There it is. There's the slop. 
+
+## What is the use case for Slop Cop?
+
+This is not a plagiarism detector. This software is not used to detect whether text was written by an AI. It's just used to detect slop in writing. 
+
+This tool is not made to detect slop in programming, which is a entirely separate but related issue.
+
 
 ## How it works
 
@@ -68,6 +83,10 @@ API calls go directly from your browser to the provider you choose (Anthropic, O
 | Superficial Analysis      | `, [participle] its/the/their/this [importance/role/significance]` — empty summarizing phrase                         |
 | False Range               | Hollow `from X to Y` constructions; `doesn't emerge from nowhere`                                                     |
 | Triple Construction       | Exactly three parallel items: `X, Y, and Z` — the LLM default                                                        |
+| Short-Hook Paragraph      | Short punchy opener (≤10 words) followed by two or more substantially longer elaboration sentences                    |
+| Significance Phrase       | `plays a key role`, `sheds light on`, `paves the way`, `sets the stage` — inflating significance without substance    |
+| Exemplar Cliché           | `textbook example`, `classic example of`, `prime example`, `poster child` — labelling proof without arguing why       |
+| Chatbot Artifact          | `I hope this helps`, `feel free to`, `great question`, `don't hesitate to ask` — conversational scaffolding in prose  |
 
 
 ### Semantic — fast pass (Claude Haiku or GPT-4.1 mini)
@@ -88,7 +107,7 @@ pnpm test       # client-side unit tests (299 tests, no API key needed)
 pnpm test:llm   # LLM integration tests (requires ANTHROPIC_API_KEY in .env)
 ```
 
-The editor is a `contenteditable` div with a custom undo/redo stack — native browser undo is destroyed by `innerHTML` replacement, so undo history is maintained in refs and intercepted via `keydown`.
+The editor is a `contenteditable` div with a custom undo/redo stack. Native browser undo is destroyed by `innerHTML` replacement, so undo history is maintained in refs and intercepted via `keydown`.
 
 ## Source rules
 
