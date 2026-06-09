@@ -10,6 +10,8 @@ import Popover, { type PopoverState } from './components/Popover'
 import ParaRewritePopover from './components/ParaRewritePopover'
 import MarkdownLiveEditor from './components/MarkdownLiveEditor'
 import { useHashText } from './hooks/useHashText'
+import { useDarkMode } from './hooks/useDarkMode'
+import { ThemeContext, lightTheme, darkTheme } from './theme'
 import { SAMPLE_TEXT } from './data/sampleText'
 import SAMPLE_VIOLATIONS from './data/sampleViolations.json'
 
@@ -24,6 +26,12 @@ function isLLMProvider(value: string | null): value is LLMProvider {
 }
 
 export default function App() {
+  const [darkMode, toggleDark] = useDarkMode()
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
   const [text, setText] = useState(() => {
     const hash = window.location.hash.slice(1)
     if (!hash) return SAMPLE_TEXT
@@ -61,6 +69,7 @@ export default function App() {
   // CM6 EditorView instance — populated when MarkdownLiveEditor mounts
   const editorViewRef = useRef<EditorView | null>(null)
   const editorScrollRef = useRef<HTMLDivElement>(null)
+  const violationCursorRef = useRef<Map<string, number>>(new Map())
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Track current text immediately (not just on re-render) for use in callbacks
   const textRef = useRef(text)
@@ -140,12 +149,14 @@ export default function App() {
       return
     }
     const hoveredRule = RULES_BY_ID[hoveredRuleId]
-    contentDOM.style.color = 'rgba(26,26,26,0.15)'
+    const dimColor = darkMode ? 'rgba(232,232,224,0.12)' : 'rgba(26,26,26,0.15)'
+    const activeTextColor = darkMode ? '#e8e8e0' : '#1a1a1a'
+    contentDOM.style.color = dimColor
     contentDOM.querySelectorAll<HTMLElement>('[data-rules]').forEach(m => {
       const rules = (m.getAttribute('data-rules') ?? '').split(',')
       if (rules.includes(hoveredRuleId)) {
         m.style.opacity = '1'
-        m.style.color = '#1a1a1a'
+        m.style.color = activeTextColor
         if (hoveredRule && !m.dataset.hoverOverridden) {
           m.dataset.hoverOverridden = '1'
           m.dataset.origBg = m.style.background
@@ -154,7 +165,7 @@ export default function App() {
           m.style.borderBottom = `2px solid ${hoveredRule.color}`
         }
       } else {
-        m.style.opacity = '0.15'
+        m.style.opacity = '0.45'
         m.style.color = ''
       }
     })
@@ -174,7 +185,7 @@ export default function App() {
     if (!anyVisible) {
       matchingMarks[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
-  }, [hoveredRuleId])
+  }, [hoveredRuleId, darkMode])
 
   // Reset sparkle hover state when the paragraph changes
   useEffect(() => {
@@ -465,6 +476,19 @@ export default function App() {
     setRewritePopover(null)
   }, [rewritePopover, applyTextChange])
 
+  const handleViolationBadgeClick = useCallback((ruleId: string) => {
+    const view = editorViewRef.current
+    if (!view) return
+    const marks = Array.from(
+      view.contentDOM.querySelectorAll<HTMLElement>('[data-rules]')
+    ).filter(m => (m.getAttribute('data-rules') ?? '').split(',').includes(ruleId))
+    if (marks.length === 0) return
+    const cursor = violationCursorRef.current
+    const idx = (cursor.get(ruleId) ?? 0) % marks.length
+    cursor.set(ruleId, idx + 1)
+    marks[idx].scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+
   const toggleRule = (ruleId: string) => {
     setHiddenRules(prev => {
       const next = new Set(prev)
@@ -478,12 +502,17 @@ export default function App() {
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   const stalePct = llmStatus === 'stale' ? stalePercent(lastAnalyzedTextRef.current, text) : 0
 
+  const theme = darkMode ? darkTheme : lightTheme
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f5f5f0' }}>
+    <ThemeContext.Provider value={theme}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: theme.bg }}>
       <Toolbar
         apiKey={apiKey}
         provider={provider}
         localConfig={localConfig}
+        darkMode={darkMode}
+        onToggleDark={toggleDark}
         onCredentialsSave={(nextProvider, key, nextLocalConfig) => {
           setProvider(nextProvider)
           localStorage.setItem(LLM_PROVIDER_STORAGE, nextProvider)
@@ -530,8 +559,8 @@ export default function App() {
             {llmError && (
               <div style={{
                 marginBottom: '16px', padding: '10px 14px',
-                background: '#fff0f0', border: '1px solid #fca5a5',
-                borderRadius: '6px', fontSize: '13px', color: '#dc2626',
+                background: theme.redBg, border: `1px solid ${theme.redBorder}`,
+                borderRadius: '6px', fontSize: '13px', color: theme.red,
                 fontFamily: 'sans-serif',
               }}>
                 API error: {llmError}
@@ -546,7 +575,7 @@ export default function App() {
                 fontSize: '18px',
                 lineHeight: '1.9',
                 fontFamily: "'Georgia', 'Times New Roman', serif",
-                color: '#ccc',
+                color: theme.textFaintest,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
@@ -560,6 +589,7 @@ export default function App() {
               initialText={text}
               violations={allViolations}
               activeRules={activeRules}
+              dark={darkMode}
               onChange={handleEditorChange}
               onViolationClick={handleViolationClick}
               onMount={(view) => { editorViewRef.current = view }}
@@ -583,8 +613,8 @@ export default function App() {
                 onMouseLeave={() => setSelectionBtnHovered(false)}
                 style={{
                   position: 'relative',
-                  background: '#fff',
-                  border: '1px solid #e0dbd4',
+                  background: theme.surface,
+                  border: `1px solid ${theme.border}`,
                   borderRadius: '8px',
                   padding: '4px 10px 4px 9px',
                   cursor: 'pointer',
@@ -593,16 +623,16 @@ export default function App() {
                   gap: '5px',
                   fontSize: '11px',
                   fontFamily: 'sans-serif',
-                  color: '#666',
+                  color: theme.textFaint,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                   whiteSpace: 'nowrap',
                   minWidth: '120px',
                 }}
               >
                 <span style={{ fontSize: '12px', lineHeight: 1 }}>✨</span>
-                <span style={{ color: selectionBtnHovered ? '#000' : '#666' }}>Rewrite selection</span>
-                <div style={{ position: 'absolute', right: '-8px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '8px solid #e0dbd4' }} />
-                <div style={{ position: 'absolute', right: '-7px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '8px solid #fff' }} />
+                <span style={{ color: selectionBtnHovered ? theme.text : theme.textFaint }}>Rewrite selection</span>
+                <div style={{ position: 'absolute', right: '-8px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: `8px solid ${theme.border}` }} />
+                <div style={{ position: 'absolute', right: '-7px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: `8px solid ${theme.surface}` }} />
               </button>
             </div>
           )}
@@ -632,8 +662,8 @@ export default function App() {
                 title="Rewrite this paragraph with AI"
                 style={{
                   position: 'relative',
-                  background: '#fff',
-                  border: '1px solid #e0dbd4',
+                  background: theme.surface,
+                  border: `1px solid ${theme.border}`,
                   borderRadius: '8px',
                   padding: '4px 10px 4px 9px',
                   cursor: 'pointer',
@@ -642,16 +672,16 @@ export default function App() {
                   gap: '5px',
                   fontSize: '11px',
                   fontFamily: 'sans-serif',
-                  color: '#666',
+                  color: theme.textFaint,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
                   whiteSpace: 'nowrap',
                   minWidth: '80px',
                 }}
               >
                 <span style={{ fontSize: '12px', lineHeight: 1 }}>✨</span>
-                <span style={{ color: sparkleHovered ? 'black' : '#666' }}>Rewrite</span>
-                <div style={{ position: 'absolute', right: '-8px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '8px solid #e0dbd4' }} />
-                <div style={{ position: 'absolute', right: '-7px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '8px solid #fff' }} />
+                <span style={{ color: sparkleHovered ? theme.text : theme.textFaint }}>Rewrite</span>
+                <div style={{ position: 'absolute', right: '-8px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: `8px solid ${theme.border}` }} />
+                <div style={{ position: 'absolute', right: '-7px', top: '50%', marginTop: '-6px', width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: `8px solid ${theme.surface}` }} />
               </button>
             </div>
           )}
@@ -664,8 +694,8 @@ export default function App() {
               top: paraHighlightRect.top - 2,
               width: paraHighlightRect.width + 8,
               height: paraHighlightRect.height + 4,
-              background: 'rgba(254, 240, 138, 0.35)',
-              mixBlendMode: 'multiply',
+              background: darkMode ? 'rgba(254, 240, 138, 0.08)' : 'rgba(254, 240, 138, 0.35)',
+              mixBlendMode: darkMode ? 'screen' : 'multiply',
               borderRadius: '3px',
               pointerEvents: 'none',
               zIndex: 10,
@@ -679,6 +709,7 @@ export default function App() {
           hiddenRules={hiddenRules}
           onToggleRule={toggleRule}
           onRuleHover={setHoveredRuleId}
+          onViolationBadgeClick={handleViolationBadgeClick}
           wordCount={wordCount}
           hasApiKey={!!apiKey}
           llmStatus={llmStatus}
@@ -722,7 +753,7 @@ export default function App() {
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          background: '#1a1a1a',
+          background: theme.text,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -739,6 +770,7 @@ export default function App() {
         </svg>
       </a>
     </div>
+    </ThemeContext.Provider>
   )
 }
 
