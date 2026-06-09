@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
+import { computeSlopScore, RATING_COLOR } from '../utils/slopScore'
 
 interface Props {
   violations: Violation[]
@@ -30,6 +32,9 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
   }
 
   const totalHits = violations.filter(v => !hiddenRules.has(v.ruleId)).length
+  const { score, rating } = computeSlopScore(violations, wordCount, hiddenRules)
+  const scoreColor = RATING_COLOR[rating]
+  const [showScoreInfo, setShowScoreInfo] = useState(false)
 
   // Group rules by category, only show rules with hits (or LLM rules if unlocked)
   const byCategory = new Map<ViolationCategory, typeof RULES>()
@@ -52,6 +57,92 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
     }}>
       {/* Stats header */}
       <div style={{ padding: '20px 20px 0' }}>
+        {/* Slop score */}
+        {wordCount > 0 && (
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontSize: '32px', fontWeight: '700', color: scoreColor, fontFamily: 'monospace', lineHeight: 1 }}>
+                {score}
+              </span>
+              <span style={{ fontSize: '16px', fontWeight: '600', color: scoreColor, fontFamily: 'sans-serif' }}>
+                / 100
+              </span>
+              <span style={{
+                fontSize: '11px', fontWeight: '700', fontFamily: 'sans-serif',
+                color: '#fff', background: scoreColor, borderRadius: '4px',
+                padding: '2px 6px', letterSpacing: '0.04em', textTransform: 'uppercase',
+              }}>
+                {rating}
+              </span>
+            </div>
+            {/* Score bar */}
+            <div style={{ marginTop: '6px', height: '4px', background: '#eee', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${score}%`,
+                background: scoreColor, borderRadius: '2px',
+                transition: 'width 0.3s ease, background 0.3s ease',
+              }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', color: '#aaa', fontFamily: 'sans-serif' }}>Slop score</span>
+              <button
+                onClick={() => setShowScoreInfo(v => !v)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: '14px', height: '14px', borderRadius: '50%',
+                  border: '1px solid #ccc', background: 'transparent',
+                  fontSize: '9px', fontWeight: '700', color: '#aaa',
+                  cursor: 'default', padding: 0, lineHeight: 1,
+                }}
+              >
+                ?
+              </button>
+            </div>
+            {showScoreInfo && (
+              <div style={{
+                marginTop: '8px', padding: '10px 12px',
+                background: '#f9f9f9', border: '1px solid #e8e8e8',
+                borderRadius: '6px', fontSize: '11px', color: '#555',
+                fontFamily: 'sans-serif', lineHeight: '1.6',
+              }}>
+                <strong style={{ display: 'block', marginBottom: '5px', color: '#333' }}>How it's calculated</strong>
+                Each detected pattern is weighted by category, then divided by word count and scaled to 0–100.
+                <div style={{ marginTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {([
+                    ['Word Choice', '×1'],
+                    ['Sentence Structure', '×2'],
+                    ['Rhetorical Patterns', '×2'],
+                    ['Framing Tells', '×2'],
+                    ['Structural Tells', '×3'],
+                  ] as const).map(([label, weight]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#777' }}>{label}</span>
+                      <span style={{ fontWeight: '600', color: '#444', fontFamily: 'monospace' }}>{weight}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: '8px', borderTop: '1px solid #e8e8e8', paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {([
+                    ['0 – 29', 'Clean', RATING_COLOR.Clean],
+                    ['30 – 50', 'Moderate', RATING_COLOR.Moderate],
+                    ['51 – 70', 'Heavy', RATING_COLOR.Heavy],
+                    ['71 – 100', 'Slop', RATING_COLOR.Slop],
+                  ] as const).map(([range, label, color]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#777' }}>{range}</span>
+                      <span style={{ fontWeight: '700', color, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+                {!hasApiKey && (
+                  <div style={{ marginTop: '7px', borderTop: '1px solid #e8e8e8', paddingTop: '7px', color: '#aaa', fontSize: '10px' }}>
+                    Add an API key to include semantic patterns in the score.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ fontSize: '13px', fontWeight: '600', color: '#444', fontFamily: 'sans-serif', marginBottom: '2px' }}>
           Words: {wordCount}
         </div>
