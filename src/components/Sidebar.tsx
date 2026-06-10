@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
-import { computeSlopScore, countViolationsByRule, RATING_COLOR } from '../utils/slopScore'
+import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT } from '../utils/slopScore'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -28,12 +28,12 @@ const CATEGORY_ORDER: ViolationCategory[] = [
   'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
 ]
 
-export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus, width = 260 }: Props) {
+export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus, width = 350 }: Props) {
   const t = useTheme()
   const countByRule = countViolationsByRule(violations)
   const totalHits = Array.from(countViolationsByRule(violations, hiddenRules).values())
     .reduce((sum, n) => sum + n, 0)
-  const { score, rating } = computeSlopScore(violations, wordCount, hiddenRules)
+  const { score, rating, weightedHits, breakdown } = computeSlopScore(violations, wordCount, hiddenRules)
   const scoreColor = RATING_COLOR[rating]
   const [showScoreInfo, setShowScoreInfo] = useState(false)
 
@@ -111,36 +111,73 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                 marginTop: '8px', padding: '10px 12px',
                 background: t.surfaceAlt, border: `1px solid ${t.border}`,
                 borderRadius: '6px', fontSize: '11px', color: t.textFaint,
-                fontFamily: 'sans-serif', lineHeight: '1.6',
+                fontFamily: 'sans-serif', lineHeight: '1.5',
               }}>
-                <strong style={{ display: 'block', marginBottom: '5px', color: t.text }}>How it's calculated</strong>
-                Each violation carries a signal weight (0–1). That weight is multiplied by the rule's category weight, then scoring mode controls how repeated hits accumulate. The total is divided by word count, multiplied by 500, and capped at 100.
-                <div style={{ marginTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {([
-                    ['Word Choice', '×1'],
-                    ['Sentence Structure', '×2'],
-                    ['Rhetorical Patterns', '×2'],
-                    ['Framing Tells', '×2'],
-                    ['Structural Tells', '×3'],
-                  ] as const).map(([label, weight]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: t.textFainter }}>{label}</span>
-                      <span style={{ fontWeight: '600', color: t.textMuted, fontFamily: 'monospace' }}>{weight}</span>
+                {/* Per-rule breakdown table */}
+                {breakdown.length > 0 ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto auto auto auto auto auto', gap: '1px 3px', alignItems: 'baseline', marginBottom: '6px' }}>
+                      {/* Header — operators columns left blank */}
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest }}>Rule</span>
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Total violation weight for this rule (sum of all hit weights)">w</span>
+                      <span />
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Weighted instances allowed free at this word count (wordCount ÷ 1000 × freeRate)">free</span>
+                      <span />
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Excess weight after subtracting free allowance (w − free)">exc</span>
+                      <span />
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Category weight — float multiplier applied to excess. * means diminishing returns were applied after 3 excess instances.">c.wt</span>
+                      <span />
+                      <span />
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="This rule's contribution to the total weighted hit count">pts</span>
+
+                      {/* Rows */}
+                      {breakdown.map(row => {
+                        const fmt = (n: number) => n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)
+                        const op: React.CSSProperties = { fontFamily: 'monospace', color: t.textFaintest, fontSize: '10px', textAlign: 'center' }
+                        const val: React.CSSProperties = { fontFamily: 'monospace', color: t.textFainter, fontSize: '10px', textAlign: 'right' }
+                        return (
+                          <>
+                            <span key={row.ruleId + '-name'} style={{ color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10px' }} title={row.ruleName}>{row.ruleName}</span>
+                            <span key={row.ruleId + '-w'} style={val}>{fmt(row.totalWeight)}</span>
+                            <span key={row.ruleId + '-minus'} style={op}>−</span>
+                            <span key={row.ruleId + '-free'} style={val}>{fmt(row.freeCount)}</span>
+                            <span key={row.ruleId + '-eq1'} style={op}>=</span>
+                            <span key={row.ruleId + '-exc'} style={val}>{fmt(row.excessWeight)}</span>
+                            <span key={row.ruleId + '-times'} style={op}>×</span>
+                            <span key={row.ruleId + '-cat'} style={val}>{row.catWeight}{row.scoringMode === 'diminishing' ? '*' : ''}</span>
+                            <span key={row.ruleId + '-eq2'} style={op}>=</span>
+                            <span />
+                            <span key={row.ruleId + '-pts'} style={{ fontFamily: 'monospace', fontWeight: '600', color: t.text, textAlign: 'right', fontSize: '10px' }}>{row.contribution.toFixed(2)}</span>
+                          </>
+                        )
+                      })}
                     </div>
-                  ))}
-                </div>
-                <div style={{ marginTop: '8px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {([
-                    ['Linear', 'every instance counts'],
-                    ['Threshold', 'weighting does not apply until N/1k instances'],
-                    ['Diminishing', 'decays after 3 excess instances'],
-                  ] as const).map(([mode, desc]) => (
-                    <div key={mode} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontWeight: '600', color: t.textMuted, fontFamily: 'monospace', flexShrink: 0 }}>{mode}</span>
-                      <span style={{ color: t.textFainter, textAlign: 'right' }}>{desc}</span>
+
+                    {/* Totals */}
+                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ color: t.textFainter, fontSize: '10px' }}>Σ weighted pts</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '600', color: t.text, fontSize: '10px' }}>{weightedHits.toFixed(3)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ color: t.textFainter, fontSize: '10px' }}>÷ {wordCount} words × 500</span>
+                        <span style={{ fontFamily: 'monospace', color: t.textFainter, fontSize: '10px' }}>{((weightedHits / wordCount) * 500).toFixed(3)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ color: t.textFainter, fontSize: '10px' }}>round + cap at 100</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: '700', color: scoreColor, fontSize: '11px' }}>{score}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+
+                    <div style={{ marginTop: '6px', fontSize: '9px', color: t.textFaintest }}>
+                      * diminishing returns applied after 3 excess instances
+                    </div>
+                  </>
+                ) : (
+                  <span style={{ color: t.textFaintest }}>No violations contributing to score yet.</span>
+                )}
+
+                {/* Rating thresholds */}
                 <div style={{ marginTop: '8px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {([
                     ['0 – 29', 'Clean', RATING_COLOR.Clean],
@@ -149,11 +186,23 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                     ['71 – 100', 'Slop', RATING_COLOR.Slop],
                   ] as const).map(([range, label, color]) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: t.textFainter }}>{range}</span>
+                      <span style={{ color: t.textFainter, fontFamily: 'monospace', fontSize: '10px' }}>{range}</span>
                       <span style={{ fontWeight: '700', color, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
                     </div>
                   ))}
                 </div>
+
+                {/* Category weights reference */}
+                <div style={{ marginTop: '8px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, marginBottom: '3px' }}>Category weights</div>
+                  {(Object.entries(CATEGORY_WEIGHT) as [string, number][]).map(([cat, w]) => (
+                    <div key={cat} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: t.textFainter, fontSize: '10px', textTransform: 'capitalize' }}>{cat.replace('-', ' ')}</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: '600', color: t.textMuted, fontSize: '10px' }}>×{w}</span>
+                    </div>
+                  ))}
+                </div>
+
                 {!hasApiKey && (
                   <div style={{ marginTop: '7px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', color: t.textFaintest, fontSize: '10px' }}>
                     Add an API key to include semantic patterns in the score.

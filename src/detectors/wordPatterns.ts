@@ -1,4 +1,29 @@
 import type { Violation } from '../types'
+import {
+  INTENSIFIERS,
+  INTENSIFIER_PHRASES,
+  ADJECTIVE_INTENSIFIERS,
+  ADJECTIVE_PERMITTED_FOLLOWING,
+  CONTEXT_SENSITIVE_ADVERBS,
+  VERB_INTENSIFIERS,
+  ELEVATED_REGISTER,
+  FILLER_ADVERBS,
+  FILLER_ADJECTIVES,
+  METAPHOR_CRUTCHES,
+  FALSE_CONCLUSION_PHRASES,
+  CONNECTOR_WORDS,
+  UNNECESSARY_CONTRAST_PHRASES,
+  HEDGE_WORDS,
+  MODAL_HEDGE_WEIGHTS,
+  EVALUATIVE_INTENSIFIERS,
+} from '../scoring.config'
+
+export {
+  ADJECTIVE_INTENSIFIERS,
+  ADJECTIVE_PERMITTED_FOLLOWING,
+  CONTEXT_SENSITIVE_ADVERBS,
+  VERB_INTENSIFIERS,
+}
 
 // Helper: find all case-insensitive matches of a word/phrase in text
 function findAll(text: string, pattern: RegExp, ruleId: string, weight?: number): Violation[] {
@@ -18,298 +43,6 @@ function findAll(text: string, pattern: RegExp, ruleId: string, weight?: number)
   return violations
 }
 
-// vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
-const INTENSIFIERS: Record<string, number> = {
-  'crucial':       0.50,
-  'comprehensive': 0.55,
-  'arguably':      0.60,
-  'straightforward': 0.40,
-  'noteworthy':    0.65,
-  'realm':         0.70,
-  'landscape':     0.75,
-  'tapestry':      0.95,
-  'multifaceted':  0.85,
-  'nuanced':       0.80,
-  'pivotal':       0.70,
-  'unprecedented': 0.65,
-  'paradigm':      0.75,
-  'synergy':       0.70,
-  'holistic':      0.65,
-  'transformative': 0.80,
-  'cutting-edge':  0.60,
-  'innovative':    0.50,
-  'enduring':      0.55,
-  'interplay':     0.75,
-  'intricate':     0.65,
-  'intricacies':   0.70,
-  'meticulous':    0.75,
-  'meticulously':  0.80,
-  'valuable':      0.45,
-  'vibrant':       0.70,
-  'paramount':     0.80,
-  'overarching':   0.85,
-  'actionable':    0.65,
-  'seamless':      0.70,
-  'salient':       0.75,
-  'ubiquitous':    0.70,
-  'myriad':        0.75,
-  'aforementioned': 0.90,
-  'quintessential': 0.80,
-}
-
-// Multi-word phrases that are overused LLM clichés
-const INTENSIFIER_PHRASES: Record<string, number> = {
-  'align with':        0.60,
-  'testament to':      0.85,
-  'indelible mark':    0.90,
-  'key turning point': 0.75,
-  'setting the stage': 0.70,
-}
-
-// Adjective intensifiers moved to NLP layer: flagged only in predicate position
-// (after copula) or attributive before non-excluded nouns. These words have
-// legitimate technical uses in specific compounds (vital signs, dynamic programming).
-export const ADJECTIVE_INTENSIFIERS: Record<string, number> = {
-  'vital':        0.55,
-  'robust':       0.65,
-  'dynamic':      0.60,
-  'fundamental':  0.55,
-  // Evaluative praise adjectives: individually borderline, suspicious when stacked
-  'remarkable':   0.60,
-  'fantastic':    0.35,
-  'powerful':     0.40,
-}
-
-// Per-adjective permitted following nouns. "[word] #Noun" is suppressed when the
-// noun (lowercase) appears in this list — established domain compounds where the
-// word carries a specialized, non-slop meaning.
-export const ADJECTIVE_PERMITTED_FOLLOWING: Record<string, string[]> = {
-  vital:       ['signs', 'sign', 'organs', 'organ', 'statistics', 'records', 'record', 'capacity', 'functions', 'function', 'force', 'forces'],
-  robust:      ['security', 'authentication', 'encryption'],
-  dynamic:     ['programming', 'range', 'memory', 'allocation', 'dispatch', 'typing'],
-  fundamental: ['theorem', 'theorems', 'rights', 'frequency', 'frequencies', 'forces', 'force', 'particles', 'particle'],
-}
-
-// Adverbs moved to NLP layer: flagged only when modifying an adjective or
-// appearing sentence-initial before a comma — NOT when modifying an action verb.
-export const CONTEXT_SENSITIVE_ADVERBS: Record<string, number> = {
-  'quietly':    0.60,
-  'deeply':     0.55,
-  'remarkably': 0.75,
-  'clearly':    0.50,
-}
-
-// Verb-type intensifiers — moved to NLP detector so deletion is replaced
-// with a correctly-conjugated simpler synonym (deleting a verb breaks the sentence)
-export const VERB_INTENSIFIERS = [
-  'leverage', 'delve', 'navigate', 'foster', 'underscore', 'resonate',
-  'embark', 'streamline', 'spearhead', 'harness',
-  'bolster', 'emphasize', 'enhance', 'garner',
-  // From slopbuster Tier 1 / slopsquid word list
-  'showcase', 'illuminate', 'crystallize',
-]
-
-const ELEVATED_REGISTER: [string, string | null, number][] = [
-  ['utilize',                      'use',       0.75],
-  ['utilise',                      'use',       0.75],
-  ['utilization',                  'use',       0.75],
-  ['commence',                     'start',     0.80],
-  ['commencement',                 'start',     0.80],
-  ['facilitate',                   'help',      0.65],
-  ['endeavor',                     'try',       0.75],
-  ['endeavour',                    'try',       0.75],
-  ['demonstrate',                  'show',      0.45],
-  ['ascertain',                    'find out',  0.85],
-  ['ameliorate',                   'improve',   0.95],
-  ['elucidate',                    'explain',   0.85],
-  ['promulgate',                   'spread',    0.90],
-  ['cognizant',                    'aware',     0.85],
-  ['pertaining to',                'about',     0.70],
-  ['in regards to',                'about',     0.55],
-  ['with regards to',              'about',     0.55],
-  ['with regard to',               'about',     0.50],
-  ['with respect to',              'about',     0.50],
-  ['in the context of',            null,        0.50],
-  ['at this juncture',             'now',       0.90],
-  ['at this point in time',        'now',       0.75],
-  ['going forward',                'in future', 0.70],
-  ['moving forward',               'in future', 0.75],
-  ['in terms of',                  '',          0.45],
-  ['it is worth noting',           '',          0.85],
-  ['it should be noted',           '',          0.85],
-  ['one must consider',            '',          0.80],
-  ['in light of',                  'given',     0.55],
-  ['in the realm of',              'in',        0.80],
-  ['due to the fact that',         'because',   0.70],
-  ['notwithstanding',              'despite',   0.75],
-  ['hitherto',                     'until now', 0.95],
-  ['heretofore',                   'until now', 0.95],
-  ['as a matter of fact',          null,        0.60],
-  ['the fact of the matter is',    null,        0.75],
-  ['for all intents and purposes', null,        0.70],
-  ['at its core',                  null,        0.75],
-  ['it goes without saying',       null,        0.80],
-]
-
-// quietly, deeply, remarkably, clearly moved to NLP layer (context-sensitive)
-const FILLER_ADVERBS: Record<string, number> = {
-  'importantly':  0.65,
-  'essentially':  0.60,
-  'fundamentally': 0.70,
-  'ultimately':   0.70,
-  'inherently':   0.75,
-  'particularly': 0.40,
-  'increasingly': 0.45,
-  'certainly':    0.55,
-  'undoubtedly':  0.90,
-  'obviously':    0.45,
-  'simply':       0.40,
-  'basically':    0.35,
-  'quite':        0.25,
-  'very':         0.20,
-  'really':       0.20,
-  'truly':        0.60,
-  'genuinely':    0.55,
-}
-
-const METAPHOR_CRUTCHES: Record<string, number> = {
-  'double-edged sword':          0.75,
-  'tip of the iceberg':          0.70,
-  'north star':                  0.80,
-  'building blocks':             0.65,
-  'elephant in the room':        0.65,
-  'perfect storm':               0.70,
-  'game.changer':                0.70,
-  'game changer':                0.70,
-  'low.hanging fruit':           0.75,
-  'low hanging fruit':           0.75,
-  'move the needle':             0.75,
-  'think outside the box':       0.65,
-  'at the end of the day':       0.60,
-  'paradigm shift':              0.80,
-  'silver bullet':               0.70,
-  'boiling the ocean':           0.75,
-  'drinking the kool.aid':       0.65,
-  'drinking the kool aid':       0.65,
-  'put it on the back burner':   0.65,
-  'circle back':                 0.70,
-  'deep dive':                   0.80,
-  'level up':                    0.60,
-  'hit the ground running':      0.65,
-  'move fast and break things':  0.55,
-  'the devil is in the details': 0.65,
-  'on the same page':            0.60,
-  'reinvent the wheel':          0.65,
-  'touch base':                  0.65,
-  'bandwidth':                   0.55,
-  'bleeding edge':               0.65,
-  'best of breed':               0.65,
-  'boil down':                   0.60,
-  'food for thought':            0.65,
-  'the bigger picture':          0.70,
-  'ahead of the curve':          0.70,
-  'writing on the wall':         0.65,
-  'canary in the coal mine':     0.70,
-}
-
-const FALSE_CONCLUSION_PHRASES: Record<string, number> = {
-  'in conclusion':                       0.90,
-  'to conclude':                         0.85,
-  'in summary':                          0.85,
-  'to summarize':                        0.85,
-  'to sum up':                           0.80,
-  'in closing':                          0.85,
-  'overall,':                            0.70,
-  'all in all':                          0.75,
-  'at the end of the day':               0.60,
-  'when all is said and done':           0.80,
-  'taking everything into account':      0.85,
-  'taking everything into consideration': 0.85,
-  'all things considered':               0.75,
-  'moving forward':                      0.70,
-  'going forward':                       0.70,
-  'the future looks bright':             0.95,
-  'exciting times ahead':                0.95,
-  'exciting times lie ahead':            0.95,
-  'only time will tell':                 0.85,
-  'remains to be seen':                  0.80,
-  'poised for growth':                   0.90,
-  'poised for success':                  0.90,
-  'continues to thrive':                 0.85,
-  'moving in the right direction':       0.85,
-}
-
-const CONNECTOR_WORDS: Record<string, number> = {
-  'furthermore':          0.70,
-  'moreover':             0.70,
-  'additionally':         0.65,
-  'however':              0.30,
-  'nevertheless':         0.65,
-  'nonetheless':          0.65,
-  'consequently':         0.60,
-  'therefore':            0.40,
-  'thus':                 0.45,
-  'hence':                0.55,
-  'in addition':          0.50,
-  'as a result':          0.40,
-  'for instance':         0.45,
-  'for example':          0.35,
-  'in contrast':          0.45,
-  'on the other hand':    0.45,
-  'on the contrary':      0.55,
-  'that said':            0.60,
-  'having said that':     0.70,
-  'with that in mind':    0.75,
-  'it follows that':      0.70,
-  'interestingly':        0.75,
-  'notably':              0.60,
-  'significantly':        0.55,
-  'in other words':       0.60,
-  'to put it another way': 0.80,
-  'that is to say':       0.70,
-}
-
-const UNNECESSARY_CONTRAST_PHRASES: Record<string, number> = {
-  'whereas':       0.50,
-  'as opposed to': 0.55,
-  'unlike':        0.35,
-  'in contrast to': 0.55,
-  'contrary to':   0.60,
-  'conversely':    0.70,
-}
-
-// "kind of" only as a filler qualifier, not as a classifier ("a kind of X")
-const HEDGE_WORDS: Record<string, number> = {
-  'perhaps':           0.40,
-  'arguably':          0.65,
-  'seemingly':         0.60,
-  'apparently':        0.45,
-  'ostensibly':        0.75,
-  'possibly':          0.35,
-  'potentially':       0.50,
-  'conceivably':       0.75,
-  'presumably':        0.60,
-  'supposedly':        0.50,
-  'it could be argued': 0.70,
-  'it might be':       0.55,
-  'it may be':         0.50,
-  'it seems':          0.45,
-  'it appears':        0.50,
-  'one might':         0.65,
-  'some would say':    0.75,
-  'in some ways':      0.60,
-  'to some extent':    0.60,
-  'in a sense':        0.55,
-  'sort of':           0.35,
-  'is kind of':        0.30,
-  'are kind of':       0.30,
-  'was kind of':       0.30,
-  'were kind of':      0.30,
-  'feels kind of':     0.30,
-  'seems kind of':     0.30,
-  'sounds kind of':    0.30,
-  'looks kind of':     0.30,
-}
 
 // Abstract nouns that follow "highlight(s/ed/ing) the" in LLM slop constructions.
 // Literal uses ("highlights the text", "highlights them") are excluded by this list.
@@ -380,6 +113,15 @@ export function detectFillerAdverbs(text: string): Violation[] {
   }
   // "rather" only as vague intensifier ("rather good") — not in "rather than"
   violations.push(...findAll(text, /\brather(?!\s+than)\b/gi, 'filler-adverbs', 0.40))
+  return violations
+}
+
+export function detectFillerAdjectives(text: string): Violation[] {
+  const violations: Violation[] = []
+  for (const [word, weight] of Object.entries(FILLER_ADJECTIVES)) {
+    const re = new RegExp(`\\b${word}\\b`, 'gi')
+    violations.push(...findAll(text, re, 'filler-adjectives', weight))
+  }
   return violations
 }
 
@@ -627,8 +369,6 @@ export function detectQuestionThenAnswer(text: string): Violation[] {
   return violations
 }
 
-// Only genuinely hedging modals; "should"/"would" are normative/conditional, not hedges
-const MODAL_HEDGE_WEIGHTS: Record<string, number> = { 'might': 0.50, 'could': 0.50, 'may': 0.45 }
 
 // Detect hedge stacks: sentences with 2+ hedge words
 export function detectHedgeStack(text: string): Violation[] {
@@ -1231,43 +971,10 @@ export function detectFalseRange(text: string): Violation[] {
   return violations
 }
 
-// \u2500\u2500 Stacked intensifiers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// \u2500\u2500 Stacked intensifiers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 // Evaluative praise adjectives and certainty amplifiers that are individually
 // borderline but strongly signal AI sycophantic amplification when 3+ appear
 // within a 3-sentence window.
-
-const EVALUATIVE_INTENSIFIERS: Record<string, number> = {
-  'remarkable':      0.60,
-  'fantastic':       0.35,
-  'powerful':        0.40,
-  'extraordinary':   0.60,
-  'incredible':      0.45,
-  'amazing':         0.35,
-  'profound':        0.65,
-  'compelling':      0.60,
-  'striking':        0.55,
-  'brilliant':       0.50,
-  'stunning':        0.55,
-  'exceptional':     0.60,
-  'groundbreaking':  0.75,
-  'inspiring':       0.50,
-  'masterful':       0.70,
-  'impressive':      0.45,
-  'breathtaking':    0.70,
-  'fascinating':     0.55,
-  'outstanding':     0.60,
-  'impactful':       0.80,
-  'insightful':      0.75,
-  'invaluable':      0.70,
-  'superb':          0.60,
-  'phenomenal':      0.65,
-  'marvelous':       0.65,
-  'wonderful':       0.40,
-  'magnificent':     0.60,
-  'undoubtedly':     0.90,
-  'unquestionably':  0.85,
-  'unmistakably':    0.80,
-}
 
 const EVALUATIVE_RE = new RegExp(`\\b(${Object.keys(EVALUATIVE_INTENSIFIERS).join('|')})\\b`, 'gi')
 

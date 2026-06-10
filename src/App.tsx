@@ -91,7 +91,7 @@ export default function App() {
   } | null>(null)
   const sparkleButtonRef = useRef<HTMLDivElement>(null)
 
-  const [sidebarWidth, setSidebarWidth] = useState(260)
+  const [sidebarWidth, setSidebarWidth] = useState(350)
   const isDraggingRef = useRef(false)
   const dragStartXRef = useRef(0)
   const dragStartWidthRef = useRef(0)

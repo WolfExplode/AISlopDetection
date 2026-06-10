@@ -10,7 +10,7 @@
 
 import nlp from './nlpInstance'
 import type { Violation } from '../types'
-import { VERB_INTENSIFIERS, ADJECTIVE_INTENSIFIERS, ADJECTIVE_PERMITTED_FOLLOWING, CONTEXT_SENSITIVE_ADVERBS } from './wordPatterns'
+import { VERB_INTENSIFIERS, ADJECTIVE_INTENSIFIERS, ADJECTIVE_PERMITTED_FOLLOWING, CONTEXT_SENSITIVE_ADVERBS } from '../scoring.config'
 
 // compromise .json({offset:true, tags:true}) shapes
 interface TermJson {

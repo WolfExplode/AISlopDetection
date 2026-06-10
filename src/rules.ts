@@ -1,4 +1,5 @@
 import type { ViolationRule } from './types'
+import { RULE_SCORING } from './scoring.config'
 
 export const RULES: ViolationRule[] = [
   // ── Word Choice ──────────────────────────────────────────────────────────
@@ -14,8 +15,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove overused intensifiers like "crucial", "vital", "robust", "leverage", "delve", "nuanced", "unprecedented" — delete them or restructure the sentence.',
     llmDirective: 'Remove the flagged overused intensifiers — delete them or rephrase the sentence without them.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['overused-intensifiers'],
   },
   {
     id: 'stacked-intensifiers',
@@ -29,8 +29,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove clustered evaluative adjectives — keep at most one that genuinely applies.',
     llmDirective: 'Remove the stacked evaluative intensifiers — keep only the most precise one.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['stacked-intensifiers'],
   },
   {
     id: 'elevated-register',
@@ -44,8 +43,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace elevated vocabulary with simpler words: utilize→use, commence→start, facilitate→help, endeavor→try, demonstrate→show, craft→write/make.',
     llmDirective: "Replace elevated register with plain equivalents: 'utilize'→'use', 'commence'→'start', 'facilitate'→'help', 'endeavor'→'try', 'demonstrate'→'show'.",
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['elevated-register'],
   },
   {
     id: 'filler-adverbs',
@@ -59,8 +57,21 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete sentence-opening filler adverbs: importantly, essentially, fundamentally, ultimately, inherently.',
     llmDirective: 'Do not open sentences with filler adverbs (importantly, essentially, fundamentally, ultimately, inherently).',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['filler-adverbs'],
+  },
+  {
+    id: 'filler-adjectives',
+    name: 'Filler Adjective',
+    category: 'word-choice',
+    description: '"Remarkable," "powerful," "fantastic," "profound" — hollow praise adjectives that assert quality without demonstrating it.',
+    tip: 'Delete it and let the noun carry the weight. If the sentence loses meaning, the adjective was papering over a claim that needed to be made explicitly.',
+    canRemove: true,
+    color: '#d97706',
+    bgColor: 'rgba(217,119,6,0.18)',
+    requiresLLM: false,
+    rewriteHint: 'Delete the hollow evaluative adjective and let the noun stand alone, or rewrite to show the quality rather than assert it.',
+    llmDirective: 'Remove hollow praise adjectives (remarkable, powerful, fantastic, profound, compelling, extraordinary) — let the noun earn its weight without an intensifier.',
+    ...RULE_SCORING['filler-adjectives'],
   },
   {
     id: 'almost-hedge',
@@ -74,8 +85,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "almost always/never/certainly" with a direct claim or a precise qualifier like "usually" or "rarely".',
     llmDirective: "Do not hedge with 'almost always', 'almost never', 'almost certainly' — commit to the claim directly.",
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['almost-hedge'],
   },
   {
     id: 'era-opener',
@@ -89,8 +99,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete era-opener clauses ("In an era of...", "In a world where...") and start at the real point.',
     llmDirective: "Do not open with era-framing clauses ('In an era of...', 'In a world where...') — start at the real point.",
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['era-opener'],
   },
 
   {
@@ -105,8 +114,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove quotes used for hedging, concept-labeling, or ironic distance — use the word plainly or replace it with a more precise one.',
     llmDirective: "Do not wrap words in quotation marks to hedge or coin informal labels ('compensated', 'the Golden Period', 'innovation') — use the word plainly or choose a more precise one.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['scare-quotes'],
   },
 
   // ── Framing ──────────────────────────────────────────────────────────────
@@ -122,8 +130,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace clichéd metaphors (double-edged sword, north star, game-changer, deep dive) with plain language or a specific concrete image.',
     llmDirective: 'Replace the flagged clichéd metaphors with plain language or a specific concrete image.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['metaphor-crutch'],
   },
   {
     id: 'broader-implications',
@@ -137,8 +144,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "broader/wider implications" with the actual specific implication, or delete the phrase.',
     llmDirective: "Do not use 'broader implications' or 'wider implications' — state the actual implication or delete the phrase.",
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['broader-implications'],
   },
 
   // ── Sentence Structure ───────────────────────────────────────────────────
@@ -154,8 +160,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace em-dashes with appropriate punctuation: comma for a pause, colon for elaboration, parentheses for an aside, period for a new sentence.',
     llmDirective: 'Do not use em-dashes (—). Replace each with the correct punctuation: comma for a pause, colon for elaboration, parentheses for an aside, period for a new sentence.',
-    scoringMode: 'threshold',
-    freeRate: 1.0,
+    ...RULE_SCORING['em-dash-pivot'],
   },
   {
     id: 'negation-pivot',
@@ -169,8 +174,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Rewrite "not X, but Y" constructions as direct positive claims. Lead with what is true, not what isn\'t.',
     llmDirective: "Do not use 'not X, but Y' constructions — rewrite as a direct positive claim.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['negation-pivot'],
   },
   {
     id: 'colon-elaboration',
@@ -184,8 +188,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Rewrite colon-elaboration sentences ("X: [long explanation]") by merging into one flowing sentence or splitting into two separate sentences.',
     llmDirective: "Do not use the '[short clause]: [long elaboration]' sentence structure — merge into one sentence or split into two.",
-    scoringMode: 'threshold',
-    freeRate: 1.0,
+    ...RULE_SCORING['colon-elaboration'],
   },
   {
     id: 'question-then-answer',
@@ -199,8 +202,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete rhetorical questions and make the statement directly. "What does this mean? It means X." → "This means X."',
     llmDirective: 'Do not write a rhetorical question immediately followed by its own answer — delete the question and make the statement directly.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['question-then-answer'],
   },
   {
     id: 'staccato-burst',
@@ -214,8 +216,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Break up staccato burst of short sentences by combining some or expanding one into a full thought with varied rhythm.',
     llmDirective: 'Do not write three or more consecutive very short sentences at matching rhythm — vary sentence length and structure.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['staccato-burst'],
   },
   {
     id: 'hedge-stack',
@@ -229,8 +230,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove stacked hedges (perhaps, arguably, might, could, seemingly). Keep at most one if genuinely needed; otherwise commit to the claim.',
     llmDirective: 'Do not stack multiple hedges in one sentence (perhaps, arguably, might, could, seemingly) — keep at most one.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['hedge-stack'],
   },
   {
     id: 'parenthetical-qualifier',
@@ -244,8 +244,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Cut parenthetical qualifiers (of course, to be fair, admittedly, needless to say) — integrate if essential, delete otherwise.',
     llmDirective: 'Remove the flagged parenthetical qualifiers (of course, to be fair, admittedly) — integrate the content or delete it.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['parenthetical-qualifier'],
   },
   {
     id: 'unnecessary-contrast',
@@ -259,8 +258,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove unnecessary contrast markers (whereas, as opposed to, unlike, in contrast to) — restate as a direct claim.',
     llmDirective: 'Do not use unnecessary contrast markers (whereas, as opposed to, unlike, in contrast to) — state the claim directly.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['unnecessary-contrast'],
   },
 
   // ── Rhetorical ───────────────────────────────────────────────────────────
@@ -276,8 +274,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete "it is important to note", "it\'s worth noting", "it should be noted" — just say the thing.',
     llmDirective: "Do not use 'it is important to note', 'it\\'s worth noting', or 'it should be noted' — just say the thing.",
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['important-to-note'],
   },
   {
     id: 'false-conclusion',
@@ -291,8 +288,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete conclusion signpost phrases (in conclusion, at the end of the day, to summarize, moving forward) — let the content land without announcement.',
     llmDirective: 'Do not use conclusion signpost phrases (in conclusion, at the end of the day, to summarize, moving forward) — let the content land without announcement.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['false-conclusion'],
   },
   {
     id: 'connector-addiction',
@@ -306,8 +302,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete paragraph-opening connectors (Furthermore, Moreover, Additionally, However, That said) — let the ideas connect through their content.',
     llmDirective: 'Do not open paragraphs with transitional connectors (Furthermore, Moreover, Additionally, However, That said) — let ideas connect through their content.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['connector-addiction'],
   },
 
   // ── Structural ───────────────────────────────────────────────────────────
@@ -323,8 +318,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'If the list has natural prose flow, rewrite as prose. If keeping as a list, give it its natural number of items rather than a magic number.',
     llmDirective: 'Do not use lists with exactly 3, 5, 7, or 10 items — write as prose or use the natural number of items.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['listicle-instinct'],
   },
 
   // ── Sentence Structure (new) ─────────────────────────────────────────────
@@ -340,8 +334,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "serves as", "stands as", "acts as", "functions as" with "is" or "are".',
     llmDirective: "Replace 'serves as', 'stands as', 'acts as', 'functions as' with 'is' or 'are'.",
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['serves-as'],
   },
   {
     id: 'negation-countdown',
@@ -355,8 +348,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace the "Not X. Not Y. Just Z." pattern with a single direct positive statement.',
     llmDirective: 'Do not use the "Not X. Not Y. Just Z." pattern — replace with a single direct positive statement.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['negation-countdown'],
   },
   {
     id: 'anaphora-abuse',
@@ -370,8 +362,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Vary sentence openings — break the anaphoric repetition by restructuring some sentences.',
     llmDirective: 'Do not repeat the same sentence opener three or more times consecutively — vary sentence openings.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['anaphora-abuse'],
   },
   {
     id: 'gerund-litany',
@@ -385,8 +376,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Expand gerund sentence fragments into full sentences or merge them together.',
     llmDirective: 'Do not write multiple consecutive short sentences starting with gerunds — expand or merge them.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['gerund-litany'],
   },
   {
     id: 'superficial-analysis',
@@ -400,8 +390,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Cut trailing significance phrases like ", highlighting its importance," ", underscoring its role," etc.',
     llmDirective: "Remove trailing significance phrases such as ', highlighting its importance,' or ', underscoring its role,' entirely.",
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['superficial-analysis'],
   },
 
   // ── Rhetorical (new) ─────────────────────────────────────────────────────
@@ -417,8 +406,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete false suspense transitions ("Here\'s the thing", "Here\'s the kicker", "Here\'s where it gets interesting") and state the point directly.',
     llmDirective: "Do not use false suspense transitions ('Here\\'s the thing', 'Here\\'s the kicker', 'Here\\'s where it gets interesting') — state the point directly.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['heres-the-kicker'],
   },
   {
     id: 'pedagogical-aside',
@@ -432,8 +420,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove teacher-mode preambles ("let\'s break this down", "let\'s unpack", "think of it as") and explain directly.',
     llmDirective: "Do not use teacher-mode preambles ('Let\\'s break this down', 'Let\\'s unpack', 'Think of it as') — explain directly.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['pedagogical-aside'],
   },
   {
     id: 'imagine-world',
@@ -447,8 +434,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete "Imagine a world where..." opener and start with the actual argument.',
     llmDirective: "Do not open with hypothetical world-building ('Imagine a world where...') — start with the actual argument.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['imagine-world'],
   },
   {
     id: 'vague-attribution',
@@ -462,8 +448,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace vague attribution (experts argue, studies show, research suggests) with a named source, or drop the claim entirely.',
     llmDirective: "Do not use vague attribution ('experts argue', 'studies show', 'research suggests') — name the source or drop the claim.",
-    scoringMode: 'threshold',
-    freeRate: 1.0,
+    ...RULE_SCORING['vague-attribution'],
   },
   {
     id: 'despite-challenges',
@@ -477,8 +462,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "despite its/these challenges" with the specific named challenge, or cut the concession.',
     llmDirective: "Do not use 'despite its challenges', 'despite these limitations', or similar empty concessions — name the specific challenge or cut it.",
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['despite-challenges'],
   },
 
   // ── Structural (new) ─────────────────────────────────────────────────────
@@ -494,8 +478,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Rewrite "The first... The second... The third..." as either a real bullet list or genuine prose where ideas connect through logic rather than ordinal markers.',
     llmDirective: 'Do not use ordinal prose disguising a list ("The first... The second... The third...") — write as real prose or use an actual list.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['listicle-trench-coat'],
   },
   {
     id: 'bold-first-bullets',
@@ -509,8 +492,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Rewrite bold-first bullet points as prose sentences that integrate the label naturally.',
     llmDirective: 'Do not use bold-first bullet formatting (**Term**: explanation) — integrate into prose.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['bold-first-bullets'],
   },
   {
     id: 'unicode-arrows',
@@ -524,8 +506,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace → arrows with the written-out relationship (produces, leads to, becomes, results in).',
     llmDirective: 'Do not use → arrows in prose — write out the relationship (produces, leads to, becomes).',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['unicode-arrows'],
   },
   {
     id: 'dramatic-fragment',
@@ -539,8 +520,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Absorb this short dramatic fragment into the surrounding paragraph or expand it into a complete thought.',
     llmDirective: 'Do not use a one-to-four-word standalone paragraph for dramatic emphasis — absorb it into the surrounding text.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['dramatic-fragment'],
   },
 
   // ── Framing (new) ────────────────────────────────────────────────────────
@@ -556,8 +536,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace invented concept labels ("the X paradox", "the Y vacuum") with plain description of the actual phenomenon.',
     llmDirective: "Do not use invented concept labels ('the X paradox', 'the Y vacuum', 'the Z creep') — describe the phenomenon in plain terms.",
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['concept-label'],
   },
 
   {
@@ -572,8 +551,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Expand this short opener into a complete sentence, or merge it with the sentence that follows.',
     llmDirective: 'Do not open a paragraph with a short punchy fragment followed by a pile of longer elaboration sentences — develop the opening idea fully.',
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['short-hook-paragraph'],
   },
 
   // ── Rhetorical (from cross-tool synthesis) ───────────────────────────────
@@ -589,8 +567,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "plays a key role", "sheds light on", "paves the way" with a direct verb that says what actually happens.',
     llmDirective: 'Do not use "plays a key role", "sheds light on", "paves the way", or "sets the stage" — use a direct verb.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['significance-phrases'],
   },
   {
     id: 'exemplar-cliche',
@@ -604,8 +581,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace "textbook example", "classic example of", "prime example" with the specific reason the case demonstrates your claim.',
     llmDirective: 'Do not use "textbook example", "classic example of", or "prime example of" — explain specifically why the case demonstrates the claim.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['exemplar-cliche'],
   },
   {
     id: 'chatbot-artifact',
@@ -619,8 +595,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Delete chatbot scaffolding ("I hope this helps", "feel free to", "great question") — they are conversational filler, not content.',
     llmDirective: 'Remove chatbot scaffolding phrases ("I hope this helps", "feel free to", "great question", "don\'t hesitate to ask") entirely.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['chatbot-artifact'],
   },
 
   // ── LLM-required semantic detections ─────────────────────────────────────
@@ -636,8 +611,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Break the rule-of-three pattern (X, Y, and Z) — use two items, four items, or give one item its own sentence.',
     llmDirective: 'Do not use the rule of three (X, Y, and Z) — use two items, four items, or give one item its own sentence.',
-    scoringMode: 'threshold',
-    freeRate: 1.5,
+    ...RULE_SCORING['triple-construction'],
   },
   {
     id: 'throat-clearing',
@@ -653,8 +627,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'An opening paragraph that adds zero information and could be deleted without any loss of meaning. Flag only if it\'s the very first paragraph.',
     rewriteHint: 'Delete this opening paragraph entirely — it adds no information and the piece starts properly at the next paragraph.',
     llmDirective: 'Delete this paragraph entirely — it adds no information; the piece starts properly at the next paragraph.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['throat-clearing'],
   },
   {
     id: 'sycophantic-frame',
@@ -670,8 +643,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Text that opens by complimenting the question, assignment, or topic ("Great question," "This is a fascinating topic," etc.).',
     rewriteHint: 'Delete the complimentary opener ("Great question!", "This is a fascinating topic") and start with the actual content.',
     llmDirective: "Delete the complimentary opener ('Great question!', 'This is fascinating') — start with the actual content.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['sycophantic-frame'],
   },
   {
     id: 'balanced-take',
@@ -687,8 +659,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'A sentence that makes a point then immediately softens it into nothing — reflexive RLHF-style hedging that negates the original claim.',
     rewriteHint: 'Remove reflexive hedging that immediately softens every claim. State the argument, then deal with genuine counterarguments separately.',
     llmDirective: 'Do not reflexively soften every claim with an immediate concession — state the argument, then address genuine counterarguments separately.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['balanced-take'],
   },
   {
     id: 'unnecessary-elaboration',
@@ -704,8 +675,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'A sentence that continues past the point where it was already finished, restating its own point in slightly different words within the same sentence or immediately adjacent clause. Example: "The reform failed. It did not succeed, and the attempt to change things did not work out as intended." — the second sentence adds nothing the first didn\'t already say. This is strictly a within-sentence or single-sentence pattern. Do NOT flag cross-paragraph patterns (that is one-point-dilution, a separate rule). Do NOT flag an analogy or concept introduced in one paragraph being purposefully extended or applied to a new domain in a subsequent paragraph — that is development, not elaboration.',
     rewriteHint: 'Cut sentences at the point where they were already done — remove restatements that add no new information.',
     llmDirective: 'Do not restate a point in the same sentence or adjacent clause after already making it — stop when the sentence is done.',
-    scoringMode: 'diminishing',
-    freeRate: 0,
+    ...RULE_SCORING['unnecessary-elaboration'],
   },
   {
     id: 'empathy-performance',
@@ -721,8 +691,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Generic emotional language applicable to any situation ("I understand this can be difficult," "Your feelings are valid," etc.).',
     rewriteHint: 'Delete generic empathy phrases or replace with something specific to this exact situation.',
     llmDirective: "Do not use generic empathy language ('I understand this can be difficult') — delete it or replace with something specific.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['empathy-performance'],
   },
   {
     id: 'pivot-paragraph',
@@ -738,8 +707,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'A one-sentence paragraph containing zero new information — only transitions between surrounding paragraphs.',
     rewriteHint: 'Delete this transition-only paragraph — the surrounding content should do this work.',
     llmDirective: 'Delete this transition-only paragraph — it contains no new information.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['pivot-paragraph'],
   },
   {
     id: 'false-range',
@@ -755,8 +723,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'A "from X to Y" construction where X and Y are not on any meaningful spectrum or scale — used as a fancy way to list two loosely related things rather than express a genuine range. Also flag hollow idioms like "doesn\'t come from nowhere" / "doesn\'t emerge from nowhere" that use "from" as clichéd filler. Flag only clear cases. For matchedText, capture the full verb phrase containing the hollow construction (e.g. "doesn\'t emerge from nowhere"), not just the prepositional fragment.',
     rewriteHint: 'Replace hollow "from X to Y" constructions with direct language. Cut "doesn\'t come from nowhere" and similar clichés.',
     llmDirective: "Do not use hollow 'from X to Y' constructions or clichéd idioms like 'doesn't come from nowhere' — use direct language.",
-    scoringMode: 'threshold',
-    freeRate: 0.5,
+    ...RULE_SCORING['false-range'],
   },
   {
     id: 'grandiose-stakes',
@@ -772,8 +739,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Inflating the significance of an ordinary point to world-historical importance ("will fundamentally reshape how we think about everything", "will define the next era of computing", "has implications for the future of humanity") without substantiation.',
     rewriteHint: 'Scale the claim to match the actual evidence — remove world-historical inflation and state what it actually means.',
     llmDirective: 'Do not inflate ordinary points to world-historical significance — scale the claim to match the actual evidence.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['grandiose-stakes'],
   },
   {
     id: 'historical-analogy',
@@ -789,8 +755,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Rapid-fire listing of famous companies or tech revolutions stacked together to build false authority by association ("Apple didn\'t build Uber. Facebook didn\'t build Spotify..."; "the web, mobile, social, cloud, AI"). Flag when the historical references are decorative rather than analytically necessary.',
     rewriteHint: 'Replace rapid-fire historical name-dropping with one specific analogy developed in detail, or drop the analogy and make the point directly.',
     llmDirective: 'Do not stack rapid-fire historical or company analogies — develop one analogy or drop them entirely.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['historical-analogy'],
   },
   {
     id: 'false-vulnerability',
@@ -806,8 +771,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Performative self-awareness or simulated honesty that reads as staged rather than genuine ("And yes, I\'ll admit...", "I\'ll be honest with you", "Let\'s be real:", "And yes, since we\'re being honest"). Real vulnerability is specific and uncomfortable; flag when it sounds polished and risk-free.',
     rewriteHint: 'Remove performative honesty phrases ("I\'ll be honest", "Let\'s be real") — they signal inauthenticity. If vulnerable, be specific.',
     llmDirective: "Do not use performative honesty phrases ('I\\'ll be honest', 'Let\\'s be real', 'And yes, since we\\'re being honest') — real vulnerability is specific.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['false-vulnerability'],
   },
 
   // ── Document-level (Sonnet) ───────────────────────────────────────────────
@@ -825,8 +789,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'The same metaphor, image, or conceptual frame recurs 3 or more times across the piece mechanically rather than intentionally. A single metaphor is a choice; the same one appearing every few paragraphs is a crutch. Flag a later instance (not the first), since repetition is the problem.',
     rewriteHint: 'Remove this repeated metaphor — use it once where it earns its place, or replace with a fresh image or plain language.',
     llmDirective: 'Do not repeat the flagged metaphor — use it once where it earns its place or replace with plain language.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['dead-metaphor'],
   },
   {
     id: 'one-point-dilution',
@@ -842,8 +805,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'The same core claim or argument appears across multiple paragraphs restated with different words, examples, or metaphors, but adding no new information. The piece pads a simple thesis. Flag the most redundant restatement — a sentence or clause that says something already said.',
     rewriteHint: 'Cut this restatement — the point was already made. If adding it, it must introduce genuinely new information.',
     llmDirective: 'Do not restate the same core argument in different words — add new information or cut the restatement.',
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['one-point-dilution'],
   },
   {
     id: 'fractal-summaries',
@@ -859,8 +821,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Meta-commentary that previews or recaps content rather than delivering it: "In this section, we will explore...", "As we have seen...", "To summarize what we have covered...", "What follows is an examination of...". Flag only genuine content-free structural signposting, not substantive transitions.',
     rewriteHint: 'Delete structural signposting ("In this section we will...", "As we\'ve seen...") and say the thing directly.',
     llmDirective: "Do not use structural signposting that previews or recaps content ('In this section we will...', 'As we\\'ve seen...') — say the thing directly.",
-    scoringMode: 'linear',
-    freeRate: 0,
+    ...RULE_SCORING['fractal-summaries'],
   },
 ]
 

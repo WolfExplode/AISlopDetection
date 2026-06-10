@@ -1,20 +1,28 @@
 import type { Violation, ViolationCategory } from '../types'
 import { RULES_BY_ID } from '../rules'
+import { CATEGORY_WEIGHT } from '../scoring.config'
 
-export const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
-  'word-choice': 1,
-  'sentence-structure': 2,
-  'rhetorical': 2,
-  'framing': 2,
-  'structural': 3,
-}
+export { CATEGORY_WEIGHT }
 
 export type SlopRating = 'Clean' | 'Moderate' | 'Heavy' | 'Slop'
+
+export interface RuleBreakdown {
+  ruleId: string
+  ruleName: string
+  category: ViolationCategory
+  catWeight: number
+  totalWeight: number
+  freeCount: number
+  excessWeight: number
+  scoringMode: string
+  contribution: number
+}
 
 export interface SlopScore {
   score: number       // 0–100
   rating: SlopRating
   weightedHits: number
+  breakdown: RuleBreakdown[]
 }
 
 // Full weight for excess instances 1–3, then decay by 1/sqrt(i-2) for i > 3.
@@ -60,7 +68,7 @@ export function computeSlopScore(
   wordCount: number,
   hiddenRules: Set<string>,
 ): SlopScore {
-  if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0 }
+  if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0, breakdown: [] }
 
   // Sum per-violation weights per rule.
   // Grouped violations (same ruleId+groupKey) are one logical incident; their
@@ -87,22 +95,38 @@ export function computeSlopScore(
   }
 
   let weightedHits = 0
+  const breakdown: RuleBreakdown[] = []
+
   for (const [ruleId, totalWeight] of weightByRule) {
     const rule = RULES_BY_ID[ruleId]
     if (!rule) continue
     const catWeight = CATEGORY_WEIGHT[rule.category]
 
-    // How many weighted instances are "free" at this text length
     const freeCount = (wordCount / 1000) * rule.freeRate
     const excessWeight = Math.max(0, totalWeight - freeCount)
 
+    let contribution: number
     if (rule.scoringMode === 'diminishing') {
-      weightedHits += applyDiminishing(catWeight, excessWeight)
+      contribution = applyDiminishing(catWeight, excessWeight)
     } else {
-      // 'linear' (freeRate always 0) and 'threshold' both apply full weight per excess instance
-      weightedHits += excessWeight * catWeight
+      contribution = excessWeight * catWeight
     }
+
+    weightedHits += contribution
+    breakdown.push({
+      ruleId,
+      ruleName: rule.name,
+      category: rule.category,
+      catWeight,
+      totalWeight,
+      freeCount,
+      excessWeight,
+      scoringMode: rule.scoringMode,
+      contribution,
+    })
   }
+
+  breakdown.sort((a, b) => b.contribution - a.contribution)
 
   const score = Math.min(100, Math.round((weightedHits / wordCount) * 500))
 
@@ -112,7 +136,7 @@ export function computeSlopScore(
   else if (score <= 70) rating = 'Heavy'
   else rating = 'Slop'
 
-  return { score, rating, weightedHits }
+  return { score, rating, weightedHits, breakdown }
 }
 
 export const RATING_COLOR: Record<SlopRating, string> = {
