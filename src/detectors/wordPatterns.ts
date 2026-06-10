@@ -16,6 +16,7 @@ import {
   HEDGE_WORDS,
   MODAL_HEDGE_WEIGHTS,
   EVALUATIVE_INTENSIFIERS,
+  SLOP_TRIGRAMS,
 } from '../scoring.config'
 
 export {
@@ -1048,6 +1049,32 @@ export function detectStackedIntensifiers(text: string): Violation[] {
       } else {
         i++
       }
+    }
+  }
+  return violations
+}
+
+// ── AI trigrams ───────────────────────────────────────────────────────────────
+// Three-word sequences statistically overrepresented in AI creative writing
+// relative to human baselines (Paech et al., 2025).
+
+export function detectSlopTrigrams(text: string): Violation[] {
+  const violations: Violation[] = []
+  for (const [phrase, weight] of Object.entries(SLOP_TRIGRAMS)) {
+    const words = phrase.split(' ')
+    // Allow one optional word between each pair: "voice barely whisper" matches
+    // "voice barely a whisper" and "voice was barely a whisper".
+    const pattern = words.map(w => `\\b${w}\\b`).join('(?:\\s+\\w+)?\\s+')
+    const re = new RegExp(pattern, 'gi')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      violations.push({
+        ruleId: 'slop-trigram',
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        matchedText: m[0],
+        weight,
+      })
     }
   }
   return violations

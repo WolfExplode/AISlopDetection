@@ -598,6 +598,21 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['chatbot-artifact'],
   },
 
+  {
+    id: 'slop-trigram',
+    name: 'AI Trigram',
+    category: 'word-choice',
+    description: 'Three-word sequence statistically overrepresented in AI creative writing relative to human baselines (Paech et al., 2025): "voice barely whisper," "took deep breath," "heart pounding chest," etc.',
+    tip: 'These exact phrase combinations appear in AI fiction at rates far above human writing. Replace with specific sensory detail that actually fits this scene.',
+    canRemove: false,
+    color: '#0369a1',
+    bgColor: 'rgba(3,105,161,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Replace this AI fiction cliché with specific sensory detail.',
+    llmDirective: 'Do not use this three-word AI fiction cliché — replace with specific, scene-fitting sensory detail.',
+    ...RULE_SCORING['slop-trigram'],
+  },
+
   // ── LLM-required semantic detections ─────────────────────────────────────
   {
     id: 'triple-construction',

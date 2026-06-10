@@ -49,6 +49,7 @@ export const RULE_SCORING: Record<string, { scoringMode: ScoringMode; freeRate: 
   'significance-phrases':     { scoringMode: 'diminishing', freeRate: 0 },
   'exemplar-cliche':          { scoringMode: 'diminishing', freeRate: 0 },
   'chatbot-artifact':         { scoringMode: 'linear',      freeRate: 0 },
+  'slop-trigram':             { scoringMode: 'diminishing', freeRate: 0 },
   'triple-construction':      { scoringMode: 'threshold',   freeRate: 1.5 },
   'throat-clearing':          { scoringMode: 'linear',      freeRate: 0 },
   'sycophantic-frame':        { scoringMode: 'linear',      freeRate: 0 },
@@ -395,6 +396,55 @@ export const MODAL_HEDGE_WEIGHTS: Record<string, number> = { 'might': 0.50, 'cou
 // Evaluative praise adjectives and certainty amplifiers that are individually
 // borderline but strongly signal AI sycophantic amplification when 3+ appear
 // within a 3-sentence window.
+// Three-word sequences statistically overrepresented in AI creative writing
+// relative to human baselines (Paech et al., 2025 — Antislop paper, Table 5).
+// Weights derived from pct_models field (% of 67 models that overuse the trigram).
+export const SLOP_TRIGRAMS: Record<string, number> = {
+  // ── Tier 1: >35% of models ────────────────────────────────────────────────
+  'voice barely whisper':    0.92,
+  'said voice low':          0.88,
+  'air thick scent':         0.85,
+  'took deep breath':        0.82,
+  'smile playing lips':      0.82,
+  'said voice barely':       0.80,
+  'voice barely audible':    0.80,
+  'take deep breath':        0.78,
+  'could shake feeling':     0.78,
+  // ── Tier 2: 15–35% of models ──────────────────────────────────────────────
+  'eyes never leaving':      0.75,
+  'casting long shadows':    0.72,
+  'says voice low':          0.75,
+  'heart pounding chest':    0.72,
+  'spreading across face':   0.72,
+  'air thick smell':         0.70,
+  'long shadows across':     0.68,
+  'heart hammered ribs':     0.78,
+  'voice trembling slightly': 0.75,
+  'said voice devoid':       0.75,
+  'felt profound sense':     0.72,
+  'a profound sense':        0.65,
+  // ── Tier 3: extended narrative list ──────────────────────────────────────
+  'taking deep breath':      0.78,
+  'breath caught throat':    0.80,
+  'room fell silent':        0.70,
+  'heart skipped beat':      0.72,
+  'blood ran cold':          0.78,
+  'sun dipped horizon':      0.72,
+  'chill run spine':         0.78,
+  'shiver run spine':        0.72,
+  'dust motes danced':       0.82,
+  'words hung air':          0.72,
+  'growing sense unease':    0.72,
+  'renewed sense purpose':   0.72,
+  'newfound sense purpose':  0.72,
+  'air thick tension':       0.72,
+  'piercing blue eyes':      0.78,
+  'door creaked open':       0.70,
+  'small smile playing':     0.80,
+  'smile spread across':     0.70,
+  'heart pounded chest':     0.72,
+}
+
 export const EVALUATIVE_INTENSIFIERS: Record<string, number> = {
   'remarkable':      0.75,
   'fantastic':       0.20,
