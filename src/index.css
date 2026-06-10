@@ -103,3 +103,14 @@ mark {
   background: transparent !important;
   border-bottom: none !important;
 }
+
+@keyframes mark-flash {
+  0%   { filter: brightness(1); }
+  25%  { filter: brightness(2.2) saturate(1.5); }
+  60%  { filter: brightness(1.6) saturate(1.2); }
+  100% { filter: brightness(1); }
+}
+
+.mark-flash {
+  animation: mark-flash 600ms ease-out;
+}

@@ -188,7 +188,10 @@ export default function App() {
       return r.bottom > scrollRect.top && r.top < scrollRect.bottom
     })
     if (!anyVisible) {
-      matchingMarks[0].scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const target = matchingMarks[0]
+      const targetRect = target.getBoundingClientRect()
+      const targetMid = targetRect.top - scrollRect.top + scroll.scrollTop + targetRect.height / 2
+      scroll.scrollTo({ top: targetMid - scroll.clientHeight / 2, behavior: 'smooth' })
     }
   }, [hoveredRuleId, darkMode])
 
@@ -497,7 +500,8 @@ export default function App() {
 
   const handleViolationBadgeClick = useCallback((ruleId: string) => {
     const view = editorViewRef.current
-    if (!view) return
+    const scroll = editorScrollRef.current
+    if (!view || !scroll) return
     const marks = Array.from(
       view.contentDOM.querySelectorAll<HTMLElement>('[data-rules]')
     ).filter(m => (m.getAttribute('data-rules') ?? '').split(',').includes(ruleId))
@@ -505,7 +509,18 @@ export default function App() {
     const cursor = violationCursorRef.current
     const idx = (cursor.get(ruleId) ?? 0) % marks.length
     cursor.set(ruleId, idx + 1)
-    marks[idx].scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const target = marks[idx]
+    // Scroll the target to the center of the editor scroll container directly,
+    // bypassing scrollIntoView which can mis-target when elements are above the viewport.
+    const containerRect = scroll.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const targetMid = targetRect.top - containerRect.top + scroll.scrollTop + targetRect.height / 2
+    scroll.scrollTo({ top: targetMid - scroll.clientHeight / 2, behavior: 'smooth' })
+    target.classList.remove('mark-flash')
+    // Force reflow so re-clicking the same mark re-triggers the animation
+    void target.offsetWidth
+    target.classList.add('mark-flash')
+    target.addEventListener('animationend', () => target.classList.remove('mark-flash'), { once: true })
   }, [])
 
   const toggleRule = (ruleId: string) => {

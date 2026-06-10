@@ -62,7 +62,7 @@ export function detectHighlightSlop(text: string): Violation[] {
     else if (lower.endsWith('s')) suggestion = 'shows'
     else suggestion = 'show'
     violations.push({
-      ruleId: 'overused-intensifiers',
+      ruleId: 'overused-intensifier',
       startIndex: m.index,
       endIndex: m.index + verbText.length,
       matchedText: verbText,
@@ -76,11 +76,11 @@ export function detectOverusedIntensifiers(text: string): Violation[] {
   const violations: Violation[] = []
   for (const [word, weight] of Object.entries(INTENSIFIERS)) {
     const re = new RegExp(`\\b${word}s?(?:-\\w+)*\\b`, 'gi')
-    violations.push(...findAll(text, re, 'overused-intensifiers', weight))
+    violations.push(...findAll(text, re, 'overused-intensifier', weight))
   }
   for (const [phrase, weight] of Object.entries(INTENSIFIER_PHRASES)) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    violations.push(...findAll(text, new RegExp(`\\b${escaped}\\b`, 'gi'), 'overused-intensifiers', weight))
+    violations.push(...findAll(text, new RegExp(`\\b${escaped}\\b`, 'gi'), 'overused-intensifier', weight))
   }
   return violations
 }
@@ -218,7 +218,7 @@ export function detectEmDashPivot(text: string): Violation[] {
     const line = text.slice(lineStart, lineEnd === -1 ? undefined : lineEnd)
     if (line.trim().replace(/[—–]/g, '').trim() === '') continue
     violations.push({
-      ruleId: 'em-dash-pivot',
+      ruleId: 'em-dash-overuse',
       startIndex: m.index,
       endIndex: m.index + 1,
       matchedText: m[0],
@@ -467,20 +467,23 @@ export function detectListicleInstinct(text: string): Violation[] {
     }
   }
 
-  // Bulleted lists — highlight only the first bullet marker character
+  // Bulleted lists — highlight the text of the first bullet item (not the marker itself,
+  // which gets replaced by a CM widget in live preview and suppresses Decoration.mark).
   const bulletRe = /(?:^|\n)(\s*[-*•]\s+[^\n]+)(\n\s*[-*•]\s+[^\n]+){2,}/gm
   const re2 = new RegExp(bulletRe.source, 'gm')
   while ((m = re2.exec(text)) !== null) {
     const items = m[0].trim().split('\n').filter(l => /^\s*[-*•]\s/.test(l))
     if (MAGIC_COUNTS.has(items.length)) {
-      const markerMatch = /[-*•]/.exec(m[0])
-      const markerOffset = markerMatch ? markerMatch.index : 0
-      const markerStart = m.index + markerOffset
+      const markerMatch = /[-*•]\s+/.exec(m[0])
+      const textOffset = markerMatch ? markerMatch.index + markerMatch[0].length : 0
+      const startIndex = m.index + textOffset
+      const lineEnd = m[0].indexOf('\n', textOffset)
+      const endIndex = startIndex + (lineEnd >= 0 ? lineEnd - textOffset : m[0].length - textOffset)
       violations.push({
         ruleId: 'listicle-instinct',
-        startIndex: markerStart,
-        endIndex: markerStart + 1,
-        matchedText: markerMatch ? markerMatch[0] : m[0][0],
+        startIndex,
+        endIndex: Math.max(startIndex + 1, endIndex),
+        matchedText: text.slice(startIndex, Math.max(startIndex + 1, endIndex)),
         explanation: `Bullet list with exactly ${items.length} items`,
       })
     }
@@ -669,7 +672,7 @@ export function detectGerundLitany(text: string): Violation[] {
       if (j - i >= 2) {
         const start = offsets[i]
         const end = offsets[j - 1] + sentences[j - 1].length
-        violations.push({ ruleId: 'gerund-litany', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
+        violations.push({ ruleId: 'gerund-fragment-litany', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
         i = j; continue
       }
     }
@@ -788,24 +791,32 @@ export function detectVagueAttribution(text: string): Violation[] {
 }
 
 export function detectBoldFirstBullets(text: string): Violation[] {
-  // Match the full pattern to confirm it's bold-first, but highlight only the bullet marker
   const re = /^([ \t]*)([-*•])([ \t]+\*\*[^*\n]+\*\*)/gm
   const violations: Violation[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
-    const bulletStart = m.index + m[1].length
+    // Highlight the bold text itself (between ** markers), not the bullet character.
+    // The bullet char gets replaced by a CM widget in live preview, which suppresses
+    // any Decoration.mark on that same range.
+    const group3Start = m.index + m[1].length + m[2].length
+    const group3 = m[3]
+    const star1 = group3.indexOf('**')
+    const star2 = group3.lastIndexOf('**')
+    const startIndex = group3Start + star1 + 2
+    const endIndex = group3Start + star2
+    if (startIndex >= endIndex) continue
     violations.push({
       ruleId: 'bold-first-bullets',
-      startIndex: bulletStart,
-      endIndex: bulletStart + 1,
-      matchedText: m[2],
+      startIndex,
+      endIndex,
+      matchedText: text.slice(startIndex, endIndex),
     })
   }
   return violations
 }
 
 export function detectUnicodeArrows(text: string): Violation[] {
-  return findAll(text, /→/g, 'unicode-arrows')
+  return findAll(text, /→/g, 'unicode-decoration')
 }
 
 export function detectDespiteChallenges(text: string): Violation[] {
@@ -815,7 +826,7 @@ export function detectDespiteChallenges(text: string): Violation[] {
 
 export function detectConceptLabel(text: string): Violation[] {
   const re = /\b[a-z]+\s+(paradox|trap|creep|vacuum|inversion|chasm)\b/gi
-  return findAll(text, re, 'concept-label')
+  return findAll(text, re, 'invented-concept-label')
 }
 
 export function detectDramaticFragment(text: string): Violation[] {
@@ -1057,7 +1068,7 @@ export function detectScareQuotes(text: string): Violation[] {
     if (seen.has(key)) continue
     seen.add(key)
     violations.push({
-      ruleId: 'scare-quotes',
+      ruleId: 'quote-overuse',
       startIndex: m.index,
       endIndex: m.index + m[0].length,
       matchedText: m[0],

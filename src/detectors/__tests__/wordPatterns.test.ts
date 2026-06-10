@@ -56,43 +56,43 @@ function assertSilent(violations: ReturnType<typeof detectOverusedIntensifiers>,
 
 describe('detectOverusedIntensifiers', () => {
   it('flags "crucial"', () => {
-    assertFires(detectOverusedIntensifiers('This is crucial to understand.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('This is crucial to understand.'), 'overused-intensifier')
   })
   it('flags "leverage"', () => {
-    assertFires(runClientDetectors('We must leverage our existing assets.'), 'overused-intensifiers')
+    assertFires(runClientDetectors('We must leverage our existing assets.'), 'overused-intensifier')
   })
   it('flags "delve"', () => {
-    assertFires(runClientDetectors('Let us delve into the details.'), 'overused-intensifiers')
+    assertFires(runClientDetectors('Let us delve into the details.'), 'overused-intensifier')
   })
   it('flags "robust" (via NLP layer)', () => {
-    assertFires(runClientDetectors('We built a robust framework.'), 'overused-intensifiers')
+    assertFires(runClientDetectors('We built a robust framework.'), 'overused-intensifier')
   })
   it('flags "nuanced"', () => {
-    assertFires(detectOverusedIntensifiers('This requires a nuanced approach.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('This requires a nuanced approach.'), 'overused-intensifier')
   })
   it('flags "pivotal"', () => {
-    assertFires(detectOverusedIntensifiers('This is a pivotal moment in history.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('This is a pivotal moment in history.'), 'overused-intensifier')
   })
   it('flags "unprecedented"', () => {
-    assertFires(detectOverusedIntensifiers('We are living through an unprecedented crisis.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('We are living through an unprecedented crisis.'), 'overused-intensifier')
   })
   it('flags "tapestry"', () => {
-    assertFires(detectOverusedIntensifiers('A rich tapestry of cultural influences.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('A rich tapestry of cultural influences.'), 'overused-intensifier')
   })
   it('flags "multifaceted"', () => {
-    assertFires(detectOverusedIntensifiers('This is a multifaceted problem.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('This is a multifaceted problem.'), 'overused-intensifier')
   })
   it('flags "landscape"', () => {
-    assertFires(detectOverusedIntensifiers('The competitive landscape has shifted.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('The competitive landscape has shifted.'), 'overused-intensifier')
   })
   it('flags "underscore" / "underscores"', () => {
-    assertFires(runClientDetectors('This underscores the importance of planning.'), 'overused-intensifiers')
+    assertFires(runClientDetectors('This underscores the importance of planning.'), 'overused-intensifier')
   })
   it('flags "paradigm"', () => {
-    assertFires(detectOverusedIntensifiers('We need a new paradigm for thinking about this.'), 'overused-intensifiers')
+    assertFires(detectOverusedIntensifiers('We need a new paradigm for thinking about this.'), 'overused-intensifier')
   })
   it('does not flag ordinary words', () => {
-    assertSilent(detectOverusedIntensifiers('The cat sat on the mat.'), 'overused-intensifiers')
+    assertSilent(detectOverusedIntensifiers('The cat sat on the mat.'), 'overused-intensifier')
   })
 })
 
@@ -316,24 +316,24 @@ describe('detectUnnecessaryContrast', () => {
 
 describe('detectEmDashPivot', () => {
   it('flags an em-dash', () => {
-    assertFires(detectEmDashPivot('This is important—but often overlooked.'), 'em-dash-pivot')
+    assertFires(detectEmDashPivot('This is important—but often overlooked.'), 'em-dash-overuse')
   })
   it('flags multiple em-dashes', () => {
     const v = detectEmDashPivot('First—second—third.')
-    expect(v.filter(x => x.ruleId === 'em-dash-pivot').length).toBeGreaterThanOrEqual(2)
+    expect(v.filter(x => x.ruleId === 'em-dash-overuse').length).toBeGreaterThanOrEqual(2)
   })
   it('flags "not X—Y" negation em-dash pattern (spec example)', () => {
     // Em-dash used as the pivot marker in a negation reframe
-    assertFires(detectEmDashPivot("It's not just a tool—it's a paradigm shift."), 'em-dash-pivot')
+    assertFires(detectEmDashPivot("It's not just a tool—it's a paradigm shift."), 'em-dash-overuse')
   })
   it('flags em-dash replacing a semicolon', () => {
-    assertFires(detectEmDashPivot('The data shows one thing—the conclusion is another.'), 'em-dash-pivot')
+    assertFires(detectEmDashPivot('The data shows one thing—the conclusion is another.'), 'em-dash-overuse')
   })
   it('flags em-dash replacing a parenthetical', () => {
-    assertFires(detectEmDashPivot('The answer—and this surprises most people—is simpler than expected.'), 'em-dash-pivot')
+    assertFires(detectEmDashPivot('The answer—and this surprises most people—is simpler than expected.'), 'em-dash-overuse')
   })
   it('does not flag a regular hyphen', () => {
-    assertSilent(detectEmDashPivot('This is a well-known fact.'), 'em-dash-pivot')
+    assertSilent(detectEmDashPivot('This is a well-known fact.'), 'em-dash-overuse')
   })
 })
 
@@ -632,16 +632,16 @@ describe('detectAnaphoraAbuse', () => {
 
 describe('detectGerundLitany', () => {
   it('flags 2+ consecutive short gerund sentences', () => {
-    assertFires(detectGerundLitany('Fixing small bugs. Writing straightforward features. Implementing well-defined tickets.'), 'gerund-litany')
+    assertFires(detectGerundLitany('Fixing small bugs. Writing straightforward features. Implementing well-defined tickets.'), 'gerund-fragment-litany')
   })
   it('flags 2 consecutive gerund sentences', () => {
-    assertFires(detectGerundLitany('Building quickly. Shipping often.'), 'gerund-litany')
+    assertFires(detectGerundLitany('Building quickly. Shipping often.'), 'gerund-fragment-litany')
   })
   it('does NOT flag a single gerund sentence', () => {
-    assertSilent(detectGerundLitany('Building a product takes time.'), 'gerund-litany')
+    assertSilent(detectGerundLitany('Building a product takes time.'), 'gerund-fragment-litany')
   })
   it('does NOT flag a long gerund sentence (>8 words)', () => {
-    assertSilent(detectGerundLitany('Building a product that users actually love and return to is hard.'), 'gerund-litany')
+    assertSilent(detectGerundLitany('Building a product that users actually love and return to is hard.'), 'gerund-fragment-litany')
   })
 })
 
@@ -766,14 +766,14 @@ describe('detectBoldFirstBullets', () => {
 
 describe('detectUnicodeArrows', () => {
   it('flags the → character', () => {
-    assertFires(detectUnicodeArrows('Input → Output'), 'unicode-arrows')
+    assertFires(detectUnicodeArrows('Input → Output'), 'unicode-decoration')
   })
   it('flags multiple arrows', () => {
     const v = detectUnicodeArrows('Step 1 → Step 2 → Step 3')
-    expect(v.filter(x => x.ruleId === 'unicode-arrows').length).toBeGreaterThanOrEqual(2)
+    expect(v.filter(x => x.ruleId === 'unicode-decoration').length).toBeGreaterThanOrEqual(2)
   })
   it('does NOT flag ASCII arrow "->"', () => {
-    assertSilent(detectUnicodeArrows('Input -> Output'), 'unicode-arrows')
+    assertSilent(detectUnicodeArrows('Input -> Output'), 'unicode-decoration')
   })
 })
 
@@ -798,19 +798,19 @@ describe('detectDespiteChallenges', () => {
 
 describe('detectConceptLabel', () => {
   it('flags "the supervision paradox"', () => {
-    assertFires(detectConceptLabel('This is the supervision paradox at its core.'), 'concept-label')
+    assertFires(detectConceptLabel('This is the supervision paradox at its core.'), 'invented-concept-label')
   })
   it('flags "the trust vacuum"', () => {
-    assertFires(detectConceptLabel('We are living through a trust vacuum.'), 'concept-label')
+    assertFires(detectConceptLabel('We are living through a trust vacuum.'), 'invented-concept-label')
   })
   it('flags "the attention trap"', () => {
-    assertFires(detectConceptLabel('The attention trap affects every platform.'), 'concept-label')
+    assertFires(detectConceptLabel('The attention trap affects every platform.'), 'invented-concept-label')
   })
   it('flags "the innovation chasm"', () => {
-    assertFires(detectConceptLabel('Companies fall into the innovation chasm.'), 'concept-label')
+    assertFires(detectConceptLabel('Companies fall into the innovation chasm.'), 'invented-concept-label')
   })
   it('does NOT flag ordinary sentences without the suffix words', () => {
-    assertSilent(detectConceptLabel('The product launched on schedule.'), 'concept-label')
+    assertSilent(detectConceptLabel('The product launched on schedule.'), 'invented-concept-label')
   })
 })
 

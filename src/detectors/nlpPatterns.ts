@@ -49,7 +49,7 @@ const VERB_REPLACEMENTS: Record<string, string | undefined> = {
   resonate:    undefined,
 }
 
-// Per-verb signal strength in the overused-intensifiers / elevated-register context
+// Per-verb signal strength in the overused-intensifier / elevated-register context
 const VERB_WEIGHTS: Record<string, number> = {
   showcase:    0.70,
   boast:       0.65,
@@ -236,7 +236,7 @@ function inAWayViolations(doc: NlpDoc, _chunkText: string, ruleId: string): Viol
   return violations
 }
 
-// All verb stems flagged as overused-intensifiers, combined for a single regex pass
+// All verb stems flagged as overused-intensifier, combined for a single regex pass
 const OVERUSED_VERB_STEMS = ['showcase', 'boast', ...VERB_INTENSIFIERS]
 const OVERUSED_VERB_RE = new RegExp(
   `^(${OVERUSED_VERB_STEMS.map(toStemPrefix).join('|')})`,
@@ -289,7 +289,7 @@ export function detectVerbIntensifierForms(text: string): Violation[] {
       let m: RegExpExecArray | null
       while ((m = re.exec(text)) !== null) {
         violations.push({
-          ruleId: 'overused-intensifiers',
+          ruleId: 'overused-intensifier',
           startIndex: m.index,
           endIndex: m.index + m[0].length,
           matchedText: m[0],
@@ -413,11 +413,11 @@ function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[]
 /** Run all NLP sub-detectors on a pre-parsed doc; positions are chunk-relative */
 function runNlpDetectors(doc: NlpDoc, chunkText: string): Violation[] {
   const v: Violation[] = []
-  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifiers').map(x => ({ ...x, weight: 0.60 })))
-  v.push(...verbViolations(doc, OVERUSED_VERB_RE, 'overused-intensifiers'))
+  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifier').map(x => ({ ...x, weight: 0.60 })))
+  v.push(...verbViolations(doc, OVERUSED_VERB_RE, 'overused-intensifier'))
   v.push(...verbViolations(doc, /^craft/i, 'elevated-register'))
-  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifiers').map(x => ({ ...x, weight: 0.75 })))
-  v.push(...detectAdjectiveIntensifiers(doc, 'overused-intensifiers'))
+  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifier').map(x => ({ ...x, weight: 0.75 })))
+  v.push(...detectAdjectiveIntensifiers(doc, 'overused-intensifier'))
   v.push(...detectContextSensitiveAdverbs(doc, 'filler-adverbs'))
   return v
 }

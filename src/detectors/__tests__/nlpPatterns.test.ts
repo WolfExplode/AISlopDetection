@@ -180,7 +180,7 @@ describe('detectContextualSlop — "key" as adjective before noun', () => {
 
   it('flags "key" before noun', () => {
     const vs = nlpViolations('These are the key factors driving growth.')
-    expect(vs.some(v => v.matchedText === 'key' && v.ruleId === 'overused-intensifiers')).toBe(true)
+    expect(vs.some(v => v.matchedText === 'key' && v.ruleId === 'overused-intensifier')).toBe(true)
   })
 
   it('"key" before noun has no suggestedChange (deletion path)', () => {
@@ -504,12 +504,12 @@ describe('detectContextualSlop — pre-filter (no false positives)', () => {
 
   it('does not flag "manner" alone (no adjective before it)', () => {
     const vs = nlpViolations('Their manner was calm and professional.')
-    expect(vs.some(v => v.ruleId === 'overused-intensifiers')).toBe(false)
+    expect(vs.some(v => v.ruleId === 'overused-intensifier')).toBe(false)
   })
 
   it('does not flag "sense" alone (no adjective before it)', () => {
     const vs = nlpViolations('That makes a lot of sense to me.')
-    expect(vs.some(v => v.ruleId === 'overused-intensifiers')).toBe(false)
+    expect(vs.some(v => v.ruleId === 'overused-intensifier')).toBe(false)
   })
 })
 
@@ -642,7 +642,7 @@ describe('detectShortHookParagraph', () => {
 describe('detectAdjectiveIntensifiers — predicate position (should flag)', () => {
   it('flags "vital" after "is"', () => {
     const vs = nlpViolations('The distinction is vital for enterprises.')
-    expect(vs.some(v => v.matchedText === 'vital' && v.ruleId === 'overused-intensifiers')).toBe(true)
+    expect(vs.some(v => v.matchedText === 'vital' && v.ruleId === 'overused-intensifier')).toBe(true)
   })
   it('flags "vital" after "remains"', () => {
     const vs = nlpViolations('This approach remains vital in modern contexts.')

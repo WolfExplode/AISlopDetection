@@ -4,7 +4,7 @@ import { RULE_SCORING } from './scoring.config'
 export const RULES: ViolationRule[] = [
   // ── Word Choice ──────────────────────────────────────────────────────────
   {
-    id: 'overused-intensifiers',
+    id: 'overused-intensifier',
     name: 'Overused Intensifier',
     category: 'word-choice',
     description: 'Words like "crucial," "vital," "robust," "leverage," "delve," etc. are LLM clichés that add noise.',
@@ -15,7 +15,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Remove overused intensifiers like "crucial", "vital", "robust", "leverage", "delve", "nuanced", "unprecedented" — delete them or restructure the sentence.',
     llmDirective: 'Remove the flagged overused intensifiers — delete them or rephrase the sentence without them.',
-    ...RULE_SCORING['overused-intensifiers'],
+    ...RULE_SCORING['overused-intensifier'],
   },
   {
     id: 'stacked-intensifiers',
@@ -103,7 +103,7 @@ export const RULES: ViolationRule[] = [
   },
 
   {
-    id: 'scare-quotes',
+    id: 'quote-overuse',
     name: 'Quote Overuse',
     category: 'word-choice',
     description: 'Quotation marks wrapped around words the writer won\'t commit to — hedging on terminology ("compensated"), coining ad-hoc concept labels ("the Golden Period"), or signaling ironic distance ("innovation"). If a word needs quotes, it\'s either the wrong word or an invented label that should be explained plainly.',
@@ -112,9 +112,9 @@ export const RULES: ViolationRule[] = [
     color: '#e879f9',
     bgColor: 'rgba(232,121,249,0.15)',
     requiresLLM: false,
-    rewriteHint: 'Remove quotes used for hedging, concept-labeling, or ironic distance — use the word plainly or replace it with a more precise one.',
+    rewriteHint: 'Remove quotes used for hedging, invented-concept-labeling, or ironic distance — use the word plainly or replace it with a more precise one.',
     llmDirective: "Do not wrap words in quotation marks to hedge or coin informal labels ('compensated', 'the Golden Period', 'innovation') — use the word plainly or choose a more precise one.",
-    ...RULE_SCORING['scare-quotes'],
+    ...RULE_SCORING['quote-overuse'],
   },
 
   // ── Framing ──────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ export const RULES: ViolationRule[] = [
 
   // ── Sentence Structure ───────────────────────────────────────────────────
   {
-    id: 'em-dash-pivot',
+    id: 'em-dash-overuse',
     name: 'Em-Dash Overuse',
     category: 'sentence-structure',
     description: 'Em-dashes used as catch-all punctuation instead of choosing the right mark.',
@@ -160,7 +160,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace em-dashes with appropriate punctuation: comma for a pause, colon for elaboration, parentheses for an aside, period for a new sentence.',
     llmDirective: 'Do not use em-dashes (—). Replace each with the correct punctuation: comma for a pause, colon for elaboration, parentheses for an aside, period for a new sentence.',
-    ...RULE_SCORING['em-dash-pivot'],
+    ...RULE_SCORING['em-dash-overuse'],
   },
   {
     id: 'negation-pivot',
@@ -365,7 +365,7 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['anaphora-abuse'],
   },
   {
-    id: 'gerund-litany',
+    id: 'gerund-fragment-litany',
     name: 'Gerund Fragment Litany',
     category: 'sentence-structure',
     description: '2+ consecutive short sentences (≤8 words) starting with a capital -ing word.',
@@ -376,7 +376,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Expand gerund sentence fragments into full sentences or merge them together.',
     llmDirective: 'Do not write multiple consecutive short sentences starting with gerunds — expand or merge them.',
-    ...RULE_SCORING['gerund-litany'],
+    ...RULE_SCORING['gerund-fragment-litany'],
   },
   {
     id: 'superficial-analysis',
@@ -495,7 +495,7 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['bold-first-bullets'],
   },
   {
-    id: 'unicode-arrows',
+    id: 'unicode-decoration',
     name: 'Unicode Decoration',
     category: 'structural',
     description: 'The → arrow character used in prose as a decoration or shorthand.',
@@ -506,7 +506,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace → arrows with the written-out relationship (produces, leads to, becomes, results in).',
     llmDirective: 'Do not use → arrows in prose — write out the relationship (produces, leads to, becomes).',
-    ...RULE_SCORING['unicode-arrows'],
+    ...RULE_SCORING['unicode-decoration'],
   },
   {
     id: 'dramatic-fragment',
@@ -525,7 +525,7 @@ export const RULES: ViolationRule[] = [
 
   // ── Framing (new) ────────────────────────────────────────────────────────
   {
-    id: 'concept-label',
+    id: 'invented-concept-label',
     name: 'Invented Concept Label',
     category: 'framing',
     description: 'Compound noun + abstract suffix used as an invented analytical term: "the attention paradox," "the trust vacuum," "the context creep."',
@@ -536,7 +536,7 @@ export const RULES: ViolationRule[] = [
     requiresLLM: false,
     rewriteHint: 'Replace invented concept labels ("the X paradox", "the Y vacuum") with plain description of the actual phenomenon.',
     llmDirective: "Do not use invented concept labels ('the X paradox', 'the Y vacuum', 'the Z creep') — describe the phenomenon in plain terms.",
-    ...RULE_SCORING['concept-label'],
+    ...RULE_SCORING['invented-concept-label'],
   },
 
   {
@@ -742,7 +742,7 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['grandiose-stakes'],
   },
   {
-    id: 'historical-analogy',
+    id: 'historical-analogy-stack',
     name: 'Historical Analogy Stack',
     category: 'rhetorical',
     description: 'Rapid-fire listing of famous companies or tech revolutions to build false authority by association.',
@@ -755,7 +755,7 @@ export const RULES: ViolationRule[] = [
     llmDetectionHint: 'Rapid-fire listing of famous companies or tech revolutions stacked together to build false authority by association ("Apple didn\'t build Uber. Facebook didn\'t build Spotify..."; "the web, mobile, social, cloud, AI"). Flag when the historical references are decorative rather than analytically necessary.',
     rewriteHint: 'Replace rapid-fire historical name-dropping with one specific analogy developed in detail, or drop the analogy and make the point directly.',
     llmDirective: 'Do not stack rapid-fire historical or company analogies — develop one analogy or drop them entirely.',
-    ...RULE_SCORING['historical-analogy'],
+    ...RULE_SCORING['historical-analogy-stack'],
   },
   {
     id: 'false-vulnerability',

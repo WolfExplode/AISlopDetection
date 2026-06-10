@@ -174,11 +174,11 @@ describe('grandiose-stakes', () => {
 
 // ── Historical Analogy Stack ───────────────────────────────────────────────
 
-describe('historical-analogy', () => {
+describe('historical-analogy-stack', () => {
   it('flags rapid-fire company name stacking', async () => {
     const text = "Apple didn't build Uber. Facebook didn't build Spotify. Stripe didn't build Shopify."
     const v = await runLLMDetectors(text, API_KEY)
-    expect(hasFired(v, 'historical-analogy')).toBe(true)
+    expect(hasFired(v, 'historical-analogy-stack')).toBe(true)
   }, 20_000)
 })
 
