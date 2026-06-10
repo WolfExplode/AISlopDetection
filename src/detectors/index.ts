@@ -54,6 +54,8 @@ import {
   detectScareQuotes,
   detectSlopTrigrams,
   detectSlopBigrams,
+  detectFictionBodyLanguage,
+  detectAICharacterNames,
 } from './wordPatterns'
 
 export function runClientDetectors(text: string): Violation[] {
@@ -103,6 +105,8 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectScareQuotes(text),
     ...detectSlopTrigrams(text),
     ...detectSlopBigrams(text),
+    ...detectFictionBodyLanguage(text),
+    ...detectAICharacterNames(text),
     ...detectVerbIntensifierForms(text),
     ...detectTripleConstruction(text),
     ...detectContextualSlop(text),

@@ -67,6 +67,8 @@ export const RULE_SCORING: Record<string, { scoringMode: ScoringMode; freeRate: 
   'one-point-dilution':       { scoringMode: 'linear',      freeRate: 0 },
   'fractal-summaries':        { scoringMode: 'linear',      freeRate: 0 },
   'filler-adjectives':        { scoringMode: 'diminishing', freeRate: 0 },
+  'fiction-body-language':    { scoringMode: 'diminishing', freeRate: 0 },
+  'ai-character-name':        { scoringMode: 'diminishing', freeRate: 0 },
 }
 
 // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
@@ -106,6 +108,23 @@ export const INTENSIFIERS: Record<string, number> = {
   'myriad':        0.75,
   'aforementioned': 0.90,
   'quintessential': 0.80,
+  // Missing from eqbench slop list — essay/corporate register
+  'burgeoning':     0.80,
+  'nascent':        0.75,
+  'cornerstone':    0.80,
+  'bedrock':        0.78,
+  'foundational':   0.70,
+  'resilience':     0.72,
+  'resilient':      0.70,
+  'proactive':      0.75,
+  'scalable':       0.72,
+  'linchpin':       0.85,
+  'lifeblood':      0.85,
+  'underpinning':   0.75,
+  'underpinnings':  0.75,
+  'wellspring':     0.88,
+  'groundwork':     0.65,
+  'meaningful':     0.50,
 }
 
 // Multi-word phrases that are overused LLM clichés
@@ -158,6 +177,8 @@ export const VERB_INTENSIFIERS: string[] = [
   'bolster', 'emphasize', 'enhance', 'garner',
   // From slopbuster Tier 1 / slopsquid word list
   'showcase', 'illuminate', 'crystallize',
+  // From eqbench slop list — missing corporate/analytical verbs
+  'optimize', 'amplify', 'empower',
 ]
 
 export const ELEVATED_REGISTER: [string, string | null, number][] = [
@@ -484,6 +505,62 @@ export const EVALUATIVE_INTENSIFIERS: Record<string, number> = {
 // baselines (eqbench Slop Score / Paech et al., 2025). Stopwords ("of", "the",
 // "a") are stripped in the source data; the detector allows one optional word
 // between each pair so "glimmer hope" matches "glimmer of hope".
+// Body language / physical reaction verbs statistically overrepresented in AI fiction
+// (slopsquid + eqbench data). Individually common in fiction; flagged when ≥3 cluster
+// in one paragraph — that density is the AI signal, not any single occurrence.
+export const FICTION_BODY_LANGUAGE: Record<string, number> = {
+  // Dialogue attribution overuse
+  'stammered': 0.88,
+  'murmured':  0.75,
+  'rasped':    0.85,
+  'growled':   0.72,
+  'snarled':   0.78,
+  'hissed':    0.72,
+  'bellowed':  0.75,
+  'chuckled':  0.82,
+  'scoffed':   0.80,
+  'huffed':    0.78,
+  'snorted':   0.72,
+  'chimed':    0.72,
+  // Physical reaction / motion tells
+  'flickered': 0.90,
+  'flinched':  0.72,
+  'recoiled':  0.78,
+  'trembled':  0.78,
+  'quivered':  0.82,
+  'tensed':    0.72,
+  'stiffened': 0.78,
+  'faltered':  0.80,
+  'lurched':   0.80,
+  'winced':    0.75,
+  'bristled':  0.80,
+  // Expression tells
+  'smirked':   0.75,
+  'sneered':   0.75,
+  'quirked':   0.88,
+  // Atmosphere / setting
+  'shimmered': 0.82,
+  'beckoned':  0.75,
+}
+
+// AI-default fantasy character names (eqbench slop_list.json, Ael-/Kael-/El- families
+// + high-frequency AI names). Match only when capitalised — proper-noun usage.
+export const AI_CHARACTER_NAMES: string[] = [
+  // Ael- family (near-exclusively AI-invented)
+  'Aelara', 'Aeldrin', 'Aeliana', 'Aelion', 'Aella', 'Aelyn', 'Aelwyn',
+  // Kael- family
+  'Kael', 'Kaela', 'Kaelan', 'Kaelen', 'Kaelin', 'Kaelor',
+  // High-frequency AI defaults
+  'Elara', 'Theron', 'Lysander', 'Lysandra', 'Seraphina', 'Solara',
+  'Lyrien', 'Elysia', 'Elira', 'Eliora', 'Eldarion',
+  // AI villain / warrior names
+  'Malachor', 'Malazar', 'Draven', 'Vorlag', 'Zorax',
+  // AI sci-fi names
+  'Xyla', 'Xylar', 'Xylara', 'Zyla', 'Zylar', 'Caelum',
+  // Fantasy staples with very high AI frequency
+  'Zephyr', 'Aldric', 'Aldwyn',
+]
+
 export const SLOP_BIGRAMS: Record<string, number> = {
   // ── Creative writing / narrative tells ──────────────────────────────────────
   'brow furrowed':         0.82,

@@ -18,6 +18,8 @@ import {
   EVALUATIVE_INTENSIFIERS,
   SLOP_TRIGRAMS,
   SLOP_BIGRAMS,
+  FICTION_BODY_LANGUAGE,
+  AI_CHARACTER_NAMES,
 } from '../scoring.config'
 
 export {
@@ -1155,7 +1157,7 @@ export function detectScareQuotes(text: string): Violation[] {
   const seen = new Set<string>()
   // Regex literal avoids new RegExp() double-escape issues with \u escapes in Vite/TS
   // Matches straight (U+0022), left curly (U+201C), or right curly (U+201D) double quotes.
-  const re = /[“”"]([^“”"\r\n]{2,40})[“”"]/g
+  const re = /[“””]([^”””\r\n]{2,40})[“””]/g
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
     const inner = m[1].trim()
@@ -1171,6 +1173,80 @@ export function detectScareQuotes(text: string): Violation[] {
       matchedText: m[0],
       weight: 0.3,
     })
+  }
+  return violations
+}
+
+// ── Fiction body language cluster ─────────────────────────────────────────────
+// Flags paragraphs with ≥3 body-language / dialogue-attribution verbs. Individual
+// occurrences are normal in fiction; the density (60–98× human baseline in AI models)
+// is the signal.
+
+export function detectFictionBodyLanguage(text: string): Violation[] {
+  const violations: Violation[] = []
+
+  for (const para of splitParagraphs(text)) {
+    type Hit = { start: number; end: number; weight: number; baseWord: string }
+    const hits: Hit[] = []
+
+    for (const [word, weight] of Object.entries(FICTION_BODY_LANGUAGE)) {
+      // Match base form and common inflections (murmured, murmuring, murmurs)
+      const re = new RegExp(`\\b${word}(?:s|ed|ing)?\\b`, 'gi')
+      let m: RegExpExecArray | null
+      while ((m = re.exec(para.text)) !== null) {
+        hits.push({
+          start: para.start + m.index,
+          end: para.start + m.index + m[0].length,
+          weight,
+          baseWord: word,
+        })
+      }
+    }
+
+    if (hits.length < 2) continue
+
+    const wordList = [...new Set(hits.map(h => h.baseWord))].slice(0, 4).join(', ')
+    const groupKey = `fiction-body-${para.start}`
+    const explanation = `${hits.length} body language clichés in this paragraph: ${wordList}`
+    const flagged = new Set<number>()
+
+    for (const hit of hits) {
+      if (flagged.has(hit.start)) continue
+      flagged.add(hit.start)
+      violations.push({
+        ruleId: 'fiction-body-language',
+        groupKey,
+        startIndex: hit.start,
+        endIndex: hit.end,
+        matchedText: text.slice(hit.start, hit.end),
+        weight: hit.weight,
+        explanation,
+      })
+    }
+  }
+
+  return violations
+}
+
+// ── AI default character names ────────────────────────────────────────────────
+// Matches capitalised versions of AI-default fantasy names (Elara, Kael, Theron…).
+// Case-sensitive: only fires on proper-noun usage (first letter uppercase).
+
+export function detectAICharacterNames(text: string): Violation[] {
+  const violations: Violation[] = []
+  for (const name of AI_CHARACTER_NAMES) {
+    // Word-boundary match, case-sensitive, global
+    const re = new RegExp(`\\b${name}\\b`, 'g')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      violations.push({
+        ruleId: 'ai-character-name',
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        matchedText: m[0],
+        weight: 0.75,
+      })
+    }
   }
   return violations
 }

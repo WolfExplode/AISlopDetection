@@ -628,6 +628,36 @@ export const RULES: ViolationRule[] = [
   },
 
   {
+    id: 'fiction-body-language',
+    name: 'Body Language Cluster',
+    category: 'word-choice',
+    description: 'Two or more physical reaction / dialogue-attribution verbs in one paragraph: "stammered," "flickered," "murmured," "chuckled," etc. AI fiction uses these as emotion shortcuts at 60–98× the rate of human writing.',
+    tip: 'The density is the tell, not any single word. Replace verb-label shortcuts with what the character actually does or says — the specific action explains the emotion better than a reaction tag.',
+    canRemove: false,
+    color: '#7c3aed',
+    bgColor: 'rgba(124,58,237,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Replace body-language shorthand (stammered, flickered, murmured, chuckled) with the specific action or dialogue that shows the emotion.',
+    llmDirective: 'Do not cluster physical reaction verbs (stammered, flickered, murmured, chuckled, rasped) — replace them with specific actions or dialogue that show the emotion directly.',
+    ...RULE_SCORING['fiction-body-language'],
+  },
+
+  {
+    id: 'ai-character-name',
+    name: 'AI Default Name',
+    category: 'word-choice',
+    description: 'Character name from the AI-default fantasy name pool: Elara, Kael, Theron, Seraphina, Zephyr, Lysander, and similar Ael-/Kael-/El- constructions. LLMs default to these names in thousands of generated stories.',
+    tip: 'If you chose this name deliberately, dismiss the flag. If you didn\'t think about it, consider whether the name is serving the story or revealing that an AI wrote this.',
+    canRemove: false,
+    color: '#0891b2',
+    bgColor: 'rgba(8,145,178,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Consider whether this character name was a deliberate choice or an AI-generated default.',
+    llmDirective: 'Do not use AI-default fantasy character names (Elara, Kael, Theron, Seraphina, Zephyr, Lysander) — choose a name that suits the specific character and setting.',
+    ...RULE_SCORING['ai-character-name'],
+  },
+
+  {
     id: 'slop-bigram',
     name: 'AI Bigram',
     category: 'word-choice',
