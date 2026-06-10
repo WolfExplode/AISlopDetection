@@ -13,6 +13,7 @@ import { useHashText } from './hooks/useHashText'
 import { useDarkMode } from './hooks/useDarkMode'
 import { ThemeContext, lightTheme, darkTheme } from './theme'
 import { SAMPLE_TEXT } from './data/sampleText'
+import { computeMATTR } from './utils/slopScore'
 import SAMPLE_VIOLATIONS from './data/sampleViolations.json'
 
 const DEBOUNCE_MS = 350
@@ -558,6 +559,7 @@ export default function App() {
   }, [sidebarWidth])
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
+  const mattr = useMemo(() => computeMATTR(text), [text])
   const stalePct = llmStatus === 'stale' ? stalePercent(lastAnalyzedTextRef.current, text) : 0
 
   const theme = darkMode ? darkTheme : lightTheme
@@ -783,6 +785,7 @@ export default function App() {
           onRuleHover={setHoveredRuleId}
           onViolationBadgeClick={handleViolationBadgeClick}
           wordCount={wordCount}
+          mattr={mattr}
           hasApiKey={!!apiKey}
           llmStatus={llmStatus}
           width={sidebarWidth}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
-import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT } from '../utils/slopScore'
+import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT, type MattrResult } from '../utils/slopScore'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
   onRuleHover: (ruleId: string | null) => void
   onViolationBadgeClick: (ruleId: string) => void
   wordCount: number
+  mattr: MattrResult | null
   hasApiKey: boolean
   llmStatus: 'idle' | 'loading' | 'done' | 'stale' | 'error'
   width?: number
@@ -28,7 +29,7 @@ const CATEGORY_ORDER: ViolationCategory[] = [
   'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
 ]
 
-export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus, width = 350 }: Props) {
+export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, mattr, hasApiKey, llmStatus, width = 350 }: Props) {
   const t = useTheme()
   const countByRule = countViolationsByRule(violations)
   const totalHits = Array.from(countViolationsByRule(violations, hiddenRules).values())
@@ -105,6 +106,11 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
               >
                 ?
               </button>
+              {totalHits > 0 && (
+                <span style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif' }}>
+                  · {totalHits} pattern{totalHits !== 1 ? 's' : ''} detected
+                </span>
+              )}
             </div>
             {showScoreInfo && (
               <div style={{
@@ -212,19 +218,30 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
             )}
           </div>
         )}
-        <div style={{ fontSize: '13px', fontWeight: '600', color: t.textMuted, fontFamily: 'sans-serif', marginBottom: '2px' }}>
+        {mattr && (
+          <div style={{ marginBottom: '2px' }}
+            title={`${mattr.isFullTTR ? 'Type-Token Ratio (text too short for MATTR-500)' : 'Moving Average Type-Token Ratio, 500-word window'} — measures vocabulary variety. Lower = more repetitive, higher = more varied.`}
+          >
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: t.textMuted, fontFamily: 'sans-serif' }}>
+                Lexical diversity: {mattr.value.toFixed(3)}
+              </span>
+              <span style={{ fontSize: '10px', color: t.textFaintest, fontFamily: 'sans-serif' }}>{mattr.isFullTTR ? 'TTR' : 'MATTR-500'}</span>
+            </div>
+            <div style={{ height: '3px', background: t.border, borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.round(mattr.value * 100)}%`,
+                background: t.link,
+                borderRadius: '2px',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+          </div>
+        )}
+        <div style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif', marginTop: '6px', marginBottom: '2px' }}>
           Words: {wordCount}
         </div>
-        {totalHits > 0 && (
-          <div style={{ fontSize: '12px', color: t.textFainter, fontFamily: 'sans-serif' }}>
-            {totalHits} pattern{totalHits !== 1 ? 's' : ''} detected
-          </div>
-        )}
-        {totalHits === 0 && violations.length === 0 && (
-          <div style={{ fontSize: '12px', color: t.textFaintest, fontFamily: 'sans-serif' }}>
-            No patterns detected
-          </div>
-        )}
         <div style={{ height: '1px', background: t.border, margin: '14px 0' }} />
       </div>
 

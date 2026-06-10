@@ -39,6 +39,8 @@ This tool is not made to detect slop in programming, which is a entirely separat
 
 ## How it works
 
+Slop score outputs more accurate on longer pieces of text. The more the better!
+
 Detection runs in two tiers:
 
 **Client-side (instant):** 36 rules implemented as regex and structural analysis. Fire on every keystroke after a 350ms debounce. No API key needed.

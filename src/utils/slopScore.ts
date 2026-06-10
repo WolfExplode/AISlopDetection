@@ -139,6 +139,61 @@ export function computeSlopScore(
   return { score, rating, weightedHits, breakdown }
 }
 
+export interface MattrResult {
+  value: number       // 0–1
+  isFullTTR: boolean  // true when text is shorter than the window (no sliding)
+  tokenCount: number
+}
+
+/**
+ * Moving Average Type-Token Ratio (MATTR-500).
+ * Slides a 500-word window across the token stream and averages the TTR per window.
+ * Falls back to full-text TTR for texts shorter than the window.
+ * Returns null when the text is too short to be meaningful (< 20 words).
+ */
+export function computeMATTR(text: string, windowSize = 500): MattrResult | null {
+  const tokens = text.toLowerCase().match(/\b[a-z']+\b/g)
+  if (!tokens || tokens.length < 20) return null
+
+  if (tokens.length < windowSize) {
+    return {
+      value: new Set(tokens).size / tokens.length,
+      isFullTTR: true,
+      tokenCount: tokens.length,
+    }
+  }
+
+  // O(n) sliding window: maintain a frequency map and unique count
+  const freq = new Map<string, number>()
+  let uniqueCount = 0
+  let sum = 0
+
+  for (let i = 0; i < windowSize; i++) {
+    const t = tokens[i]
+    const prev = freq.get(t) ?? 0
+    if (prev === 0) uniqueCount++
+    freq.set(t, prev + 1)
+  }
+  sum += uniqueCount / windowSize
+
+  for (let i = 1; i <= tokens.length - windowSize; i++) {
+    const out = tokens[i - 1]
+    const outCount = freq.get(out)!
+    if (outCount === 1) { uniqueCount--; freq.delete(out) }
+    else freq.set(out, outCount - 1)
+
+    const inp = tokens[i + windowSize - 1]
+    const inCount = freq.get(inp) ?? 0
+    if (inCount === 0) uniqueCount++
+    freq.set(inp, inCount + 1)
+
+    sum += uniqueCount / windowSize
+  }
+
+  const windows = tokens.length - windowSize + 1
+  return { value: sum / windows, isFullTTR: false, tokenCount: tokens.length }
+}
+
 export const RATING_COLOR: Record<SlopRating, string> = {
   Clean: '#16a34a',
   Moderate: '#d97706',
