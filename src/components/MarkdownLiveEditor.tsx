@@ -5,7 +5,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import type { Violation } from '../types'
 import { livePreviewPlugin, blockDecorationsField } from '../editor/livePreviewPlugin'
-import { violationMarksField, setViolationsEffect } from '../editor/violationMarksExtension'
+import { violationMarksField, violationsDataField, setViolationsEffect } from '../editor/violationMarksExtension'
 import { buildEditorTheme } from '../editor/editorTheme'
 
 interface ViolationClickInfo {
@@ -55,6 +55,7 @@ export default function MarkdownLiveEditor({
           markdown(),
           livePreviewPlugin,
           blockDecorationsField,
+          violationsDataField,
           violationMarksField,
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),

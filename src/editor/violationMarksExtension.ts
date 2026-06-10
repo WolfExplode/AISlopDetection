@@ -61,6 +61,18 @@ function buildViolationDecorations(violations: Violation[], activeRules: Set<str
   return builder.finish()
 }
 
+export const violationsDataField = StateField.define<ViolationUpdate>({
+  create() {
+    return { violations: [], activeRules: new Set() }
+  },
+  update(data, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setViolationsEffect)) return effect.value
+    }
+    return data
+  },
+})
+
 export const violationMarksField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none

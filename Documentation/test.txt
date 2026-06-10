@@ -1,0 +1,14 @@
+
+Based *only* on the information provided up to the point before the medical staff act, here is my prioritized, time-critical action plan. I would be at the bedside within 1-2 minutes of arrival.
+
+| Order | Action | Rationale |
+| :--- | :--- | :--- |
+| **1** | **Bedside Extended Focused Assessment with Sonography in Trauma (E-FAST)** | This is the **single most critical step**. I would have the ultrasound machine wheeled to her bedside immediately. I am looking for one thing: **pericardial effusion**. A dark stripe around the heart, especially if the right ventricle appears collapsed in diastole, is diagnostic of tamponade. This takes 30 seconds. |
+| **2** | **Establish Large-Bore IV Access x 2** | She needs two large-bore (at least 18-gauge, ideally 16) IVs in her upper extremities. Do not waste time in the groin or neck. |
+| **3** | **Stat Bloodwork** | Type and crossmatch (send to blood bank immediately for 4 units of PRBCs), CBC, BMP, coag panel, troponin, lactate. The lactate will likely be normal or slightly elevated – but it's a baseline. |
+| **4** | **Continuous Telemetry & Non-Invasive BP** | Set the monitor to cycle BP every 2-3 minutes. Watch the trend, not the single value. |
+| **5** | **Prepare for Two Possible Trajectories (The "Dual Plan")** | **Plan A (If E-FAST is negative for pericardial effusion):** CT chest with IV contrast to rule out a hemothorax, pneumothorax, or mediastinal injury. She would go to a resuscitation bay, not the main ER. **Plan B (If E-FAST shows any pericardial effusion):** Do NOT wait. Do NOT give large amounts of fluids (which can worsen tamponade by overloading the right ventricle). Do NOT send her to CT. The next step is immediate notification of cardiothoracic surgery or the trauma attending for **pericardial window** (subxiphoid) in the OR. If she becomes hypotensive before that, I would perform a **bedside pericardiocentesis** under ultrasound guidance as a temporizing measure. |
+
+### My Biggest Concern & A Key Learning Point
+
+My greatest fear in this scenario is **cognitive anchoring** on the patient's "lively" presentation and normal vital signs. The narrative "she's walking and talking, so it can't be a heart wound" is how patients die in trauma bays.

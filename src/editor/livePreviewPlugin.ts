@@ -4,54 +4,141 @@ import { StateField } from '@codemirror/state'
 import type { EditorState } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 import { RangeSetBuilder } from '@codemirror/state'
+import { RULES_BY_ID } from '../rules'
+import type { Violation } from '../types'
+import { violationsDataField, setViolationsEffect } from './violationMarksExtension'
 
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
 type Alignment = 'left' | 'center' | 'right' | ''
 
-class TableWidget extends WidgetType {
-  rows: string[][]
-  alignments: Alignment[]
-  constructor(rows: string[][], alignments: Alignment[]) {
-    super()
-    this.rows = rows
-    this.alignments = alignments
+interface CellInfo {
+  trimmed: string
+  from: number  // doc offset of trimmed content start
+  to: number    // doc offset of trimmed content end
+}
+
+function escapeAttr(str: string): string {
+  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function renderCellHTML(
+  cell: CellInfo,
+  violations: Violation[],
+  activeRules: Set<string>,
+): string {
+  const active = violations.filter(v =>
+    activeRules.has(v.ruleId) && v.startIndex < cell.to && v.endIndex > cell.from
+  )
+  if (active.length === 0) return renderInlineMarkdown(cell.trimmed)
+
+  const events = new Set<number>([cell.from, cell.to])
+  for (const v of active) {
+    if (v.startIndex > cell.from) events.add(v.startIndex)
+    if (v.endIndex < cell.to) events.add(v.endIndex)
   }
+  const sorted = Array.from(events).sort((a, b) => a - b)
+
+  let html = ''
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const from = sorted[i]
+    const to = sorted[i + 1]
+    const chunk = cell.trimmed.slice(from - cell.from, to - cell.from)
+    if (!chunk) continue
+    const matching = active.filter(v => v.startIndex <= from && v.endIndex >= to)
+    if (matching.length === 0) {
+      html += renderInlineMarkdown(chunk)
+    } else {
+      const primary = matching.reduce((a, b) =>
+        (a.endIndex - a.startIndex) <= (b.endIndex - b.startIndex) ? a : b
+      )
+      const rule = RULES_BY_ID[primary.ruleId]
+      const ruleIds = matching.map(v => v.ruleId).join(',')
+      html += `<mark data-rules="${escapeAttr(ruleIds)}" data-start="${from}" data-end="${to}" style="background:${rule?.bgColor ?? 'rgba(255,220,0,0.35)'};border-bottom:2px solid ${rule?.color ?? '#f59e0b'};border-radius:2px;cursor:pointer;padding:0 1px;color:inherit;">${renderInlineMarkdown(chunk)}</mark>`
+    }
+  }
+  return html
+}
+
+class TableWidget extends WidgetType {
+  cells: CellInfo[][]  // rows (header + data), separator excluded
+  alignments: Alignment[]
+  violations: Violation[]
+  activeRules: Set<string>
+  private _sig: string
+
+  constructor(cells: CellInfo[][], alignments: Alignment[], violations: Violation[], activeRules: Set<string>) {
+    super()
+    this.cells = cells
+    this.alignments = alignments
+    this.violations = violations
+    this.activeRules = activeRules
+    this._sig = TableWidget.sig(cells, alignments, violations, activeRules)
+  }
+
+  private static sig(cells: CellInfo[][], alignments: Alignment[], violations: Violation[], activeRules: Set<string>): string {
+    const cellSig = cells.map(row => row.map(c => `${c.trimmed}@${c.from}`).join('|')).join('\n')
+    const vSig = violations.map(v => `${v.ruleId}:${v.startIndex}:${v.endIndex}`).join(',')
+    const rSig = [...activeRules].sort().join(',')
+    return `${cellSig}§${alignments.join(',')}§${vSig}§${rSig}`
+  }
+
   toDOM() {
     const wrapper = document.createElement('div')
     wrapper.className = 'cm-md-table-wrap'
     const table = wrapper.appendChild(document.createElement('table'))
     table.className = 'cm-md-table'
+
     const thead = table.appendChild(document.createElement('thead'))
     const headerRow = thead.appendChild(document.createElement('tr'))
-    for (let i = 0; i < this.rows[0].length; i++) {
+    for (let i = 0; i < this.cells[0].length; i++) {
       const th = headerRow.appendChild(document.createElement('th'))
-      th.innerHTML = renderInlineMarkdown(this.rows[0][i])
+      th.innerHTML = renderCellHTML(this.cells[0][i], this.violations, this.activeRules)
       if (this.alignments[i]) th.style.textAlign = this.alignments[i]
     }
-    if (this.rows.length > 1) {
+
+    if (this.cells.length > 1) {
       const tbody = table.appendChild(document.createElement('tbody'))
-      for (let r = 1; r < this.rows.length; r++) {
+      for (let r = 1; r < this.cells.length; r++) {
         const tr = tbody.appendChild(document.createElement('tr'))
-        for (let i = 0; i < this.rows[r].length; i++) {
+        for (let i = 0; i < this.cells[r].length; i++) {
           const td = tr.appendChild(document.createElement('td'))
-          td.innerHTML = renderInlineMarkdown(this.rows[r][i] ?? '')
+          td.innerHTML = renderCellHTML(this.cells[r][i] ?? { trimmed: '', from: 0, to: 0 }, this.violations, this.activeRules)
           if (this.alignments[i]) td.style.textAlign = this.alignments[i]
         }
       }
     }
     return wrapper
   }
+
   eq(other: TableWidget) {
-    return other instanceof TableWidget &&
-      JSON.stringify(other.rows) === JSON.stringify(this.rows) &&
-      JSON.stringify(other.alignments) === JSON.stringify(this.alignments)
+    return other instanceof TableWidget && other._sig === this._sig
   }
+
   ignoreEvent() { return false }
 }
 
 function parseTableCells(line: string): string[] {
   return line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+}
+
+function parseTableCellsWithOffsets(lineText: string, lineFrom: number): CellInfo[] {
+  const cells: CellInfo[] = []
+  let i = lineText[0] === '|' ? 1 : 0
+  while (i < lineText.length) {
+    const cellStart = i
+    while (i < lineText.length && lineText[i] !== '|') i++
+    const raw = lineText.slice(cellStart, i)
+    const leading = raw.length - raw.trimStart().length
+    const trimmed = raw.trim()
+    cells.push({
+      trimmed,
+      from: lineFrom + cellStart + leading,
+      to: lineFrom + cellStart + leading + trimmed.length,
+    })
+    i++ // skip |
+  }
+  return cells
 }
 
 function renderInlineMarkdown(text: string): string {
@@ -294,6 +381,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
 
   // Scan for markdown tables (line-by-line, no lezer table nodes needed)
   const numLines = doc.lines
+  const { violations, activeRules } = state.field(violationsDataField, false) ?? { violations: [] as Violation[], activeRules: new Set<string>() }
   let li = 1
   while (li <= numLines) {
     const line1 = doc.line(li)
@@ -312,13 +400,17 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
     const tableTo = tableLines[tableLines.length - 1].to
 
     if (!cursorIn(state, tableFrom, tableTo)) {
-      const headerCells = parseTableCells(tableLines[0].text)
       const alignments = parseTableCells(tableLines[1].text).map(parseAlignment)
-      const dataRows = tableLines.slice(2).map(l => parseTableCells(l.text))
+      const headerCells = parseTableCellsWithOffsets(tableLines[0].text, tableLines[0].from)
+      const dataRows = tableLines.slice(2).map(l => parseTableCellsWithOffsets(l.text, l.from))
+      const tableViolations = violations.filter(v => v.startIndex < tableTo && v.endIndex > tableFrom)
       decos.push({
         from: tableFrom,
         to: tableTo,
-        value: Decoration.replace({ widget: new TableWidget([headerCells, ...dataRows], alignments), block: true }),
+        value: Decoration.replace({
+          widget: new TableWidget([headerCells, ...dataRows], alignments, tableViolations, activeRules),
+          block: true,
+        }),
       })
     }
 
@@ -334,7 +426,8 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
 export const blockDecorationsField = StateField.define<DecorationSet>({
   create: (state) => buildBlockDecorations(state),
   update: (decos, tr) => {
-    if (tr.docChanged || tr.selection) return buildBlockDecorations(tr.state)
+    if (tr.docChanged || tr.selection || tr.effects.some(e => e.is(setViolationsEffect)))
+      return buildBlockDecorations(tr.state)
     return decos.map(tr.changes)
   },
   provide: (f) => EditorView.decorations.from(f),
