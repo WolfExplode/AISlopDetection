@@ -113,7 +113,7 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                 fontFamily: 'sans-serif', lineHeight: '1.6',
               }}>
                 <strong style={{ display: 'block', marginBottom: '5px', color: t.text }}>How it's calculated</strong>
-                Each detected pattern is weighted by category, then divided by word count and scaled to 0–100.
+                Each violation carries a signal weight (0–1). That weight is multiplied by the rule's category weight, then scoring mode controls how repeated hits accumulate. The total is divided by word count, multiplied by 500, and capped at 100.
                 <div style={{ marginTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {([
                     ['Word Choice', '×1'],
@@ -125,6 +125,18 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: t.textFainter }}>{label}</span>
                       <span style={{ fontWeight: '600', color: t.textMuted, fontFamily: 'monospace' }}>{weight}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: '8px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {([
+                    ['Linear', 'every instance counts'],
+                    ['Threshold', 'weighting does not apply until N/1k instances'],
+                    ['Diminishing', 'decays after 3 excess instances'],
+                  ] as const).map(([mode, desc]) => (
+                    <div key={mode} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontWeight: '600', color: t.textMuted, fontFamily: 'monospace', flexShrink: 0 }}>{mode}</span>
+                      <span style={{ color: t.textFainter, textAlign: 'right' }}>{desc}</span>
                     </div>
                   ))}
                 </div>

@@ -1334,3 +1334,28 @@ export function detectStackedIntensifiers(text: string): Violation[] {
   }
   return violations
 }
+
+export function detectScareQuotes(text: string): Violation[] {
+  const violations: Violation[] = []
+  const seen = new Set<string>()
+  // Regex literal avoids new RegExp() double-escape issues with \u escapes in Vite/TS
+  // Matches straight (U+0022), left curly (U+201C), or right curly (U+201D) double quotes.
+  const re = /[“”"]([^“”"\r\n]{2,40})[“”"]/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const inner = m[1].trim()
+    const wordCount = inner.split(/\s+/).filter(Boolean).length
+    if (wordCount < 1 || wordCount > 4) continue
+    const key = inner.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    violations.push({
+      ruleId: 'scare-quotes',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+      weight: 0.3,
+    })
+  }
+  return violations
+}

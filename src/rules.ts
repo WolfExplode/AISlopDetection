@@ -93,6 +93,22 @@ export const RULES: ViolationRule[] = [
     freeRate: 0.5,
   },
 
+  {
+    id: 'scare-quotes',
+    name: 'Quote Overuse',
+    category: 'word-choice',
+    description: 'Quotation marks wrapped around words the writer won\'t commit to — hedging on terminology ("compensated"), coining ad-hoc concept labels ("the Golden Period"), or signaling ironic distance ("innovation"). If a word needs quotes, it\'s either the wrong word or an invented label that should be explained plainly.',
+    tip: 'Remove the quotes and use the word plainly, or replace it with a more precise one. If it\'s a coined label, explain the concept instead of naming it.',
+    canRemove: false,
+    color: '#e879f9',
+    bgColor: 'rgba(232,121,249,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Remove quotes used for hedging, concept-labeling, or ironic distance — use the word plainly or replace it with a more precise one.',
+    llmDirective: "Do not wrap words in quotation marks to hedge or coin informal labels ('compensated', 'the Golden Period', 'innovation') — use the word plainly or choose a more precise one.",
+    scoringMode: 'linear',
+    freeRate: 0,
+  },
+
   // ── Framing ──────────────────────────────────────────────────────────────
   {
     id: 'metaphor-crutch',

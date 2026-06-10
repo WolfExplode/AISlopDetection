@@ -1,7 +1,7 @@
 import type { Violation, ViolationCategory } from '../types'
 import { RULES_BY_ID } from '../rules'
 
-const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
+export const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
   'word-choice': 1,
   'sentence-structure': 2,
   'rhetorical': 2,

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { ViolationRule } from '../types'
 import { useTheme } from '../theme'
+import { CATEGORY_WEIGHT } from '../utils/slopScore'
 
 export interface PopoverViolationData {
   startIndex: number
@@ -128,6 +129,41 @@ function SignalStrength({ weight, clusterWeight, clusterSize, t }: {
   )
 }
 
+function scoringModeLabel(mode: ViolationRule['scoringMode'], freeRate: number): string {
+  if (mode === 'linear') return 'Linear — every instance counts'
+  if (mode === 'threshold') return `Threshold — ${freeRate}/1k words free`
+  return 'Diminishing — decays after 3 instances'
+}
+
+function ScoringBreakdown({ rule, t }: { rule: ViolationRule; t: ReturnType<typeof useTheme> }) {
+  const catWeight = CATEGORY_WEIGHT[rule.category]
+  const modeLabel = scoringModeLabel(rule.scoringMode, rule.freeRate)
+
+  const lineStyle: React.CSSProperties = {
+    fontSize: '11px', fontFamily: 'sans-serif', color: t.textFaint,
+  }
+  const valueStyle: React.CSSProperties = { fontWeight: 600, color: t.textMuted }
+
+  return (
+    <div style={{
+      background: t.surfaceAlt, border: `1px solid ${t.borderLight}`,
+      borderRadius: '6px', padding: '8px 10px',
+      display: 'flex', flexDirection: 'column', gap: '3px',
+    }}>
+      <span style={{
+        fontSize: '10px', fontFamily: 'sans-serif', textTransform: 'uppercase',
+        letterSpacing: '0.08em', color: t.textFaintest, fontWeight: 600,
+        marginBottom: '2px',
+      }}>
+        Scoring
+      </span>
+      <div style={lineStyle}>Category: <span style={valueStyle}>{rule.category}</span></div>
+      <div style={lineStyle}>Category weight: <span style={valueStyle}>×{catWeight}</span></div>
+      <div style={lineStyle}>Mode: <span style={valueStyle}>{modeLabel}</span></div>
+    </div>
+  )
+}
+
 const POPOVER_WIDTH = 380
 
 export default function Popover({ state, onClose, onApply, onNextRule, onPrevRule }: Props) {
@@ -215,6 +251,8 @@ export default function Popover({ state, onClose, onApply, onNextRule, onPrevRul
         {weight !== undefined && (
           <SignalStrength weight={weight} clusterWeight={clusterWeight} clusterSize={clusterSize} t={t} />
         )}
+
+        <ScoringBreakdown rule={rule} t={t} />
 
         <p style={{ margin: 0, fontSize: '13px', fontStyle: 'italic', fontFamily: 'Georgia, serif', color: t.textMuted, lineHeight: '1.6' }}>
           {explanation ?? rule.tip}
