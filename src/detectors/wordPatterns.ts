@@ -17,6 +17,7 @@ import {
   MODAL_HEDGE_WEIGHTS,
   EVALUATIVE_INTENSIFIERS,
   SLOP_TRIGRAMS,
+  SLOP_BIGRAMS,
 } from '../scoring.config'
 
 export {
@@ -1070,6 +1071,29 @@ export function detectSlopTrigrams(text: string): Violation[] {
     while ((m = re.exec(text)) !== null) {
       violations.push({
         ruleId: 'slop-trigram',
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        matchedText: m[0],
+        weight,
+      })
+    }
+  }
+  return violations
+}
+
+export function detectSlopBigrams(text: string): Violation[] {
+  const violations: Violation[] = []
+  for (const [phrase, weight] of Object.entries(SLOP_BIGRAMS)) {
+    const [w1, w2] = phrase.split(' ')
+    // Allow one optional word between the pair so stopword-stripped entries
+    // like "glimmer hope" match "glimmer of hope" and "beacon hope" matches
+    // "beacon of hope".
+    const pattern = `\\b${w1}\\b(?:\\s+\\w+)?\\s+\\b${w2}\\b`
+    const re = new RegExp(pattern, 'gi')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      violations.push({
+        ruleId: 'slop-bigram',
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],

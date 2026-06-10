@@ -613,6 +613,21 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['slop-trigram'],
   },
 
+  {
+    id: 'slop-bigram',
+    name: 'AI Bigram',
+    category: 'word-choice',
+    description: 'Two-word sequence statistically overrepresented in AI prose relative to human baselines: narrative clichés ("brow furrowed," "swallowed hard," "dimly lit") and essay inflation ("inextricably linked," "unwavering commitment," "deeply ingrained").',
+    tip: 'These pairings are AI defaults, not observations. In fiction: show the physical detail that explains the expression. In essays: state the specific evidence instead of asserting the link.',
+    canRemove: false,
+    color: '#0284c7',
+    bgColor: 'rgba(2,132,199,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Replace this AI bigram cliché — in fiction, use specific sensory detail; in essays, state the actual evidence.',
+    llmDirective: 'Do not use this two-word AI cliché — replace with specific, concrete language.',
+    ...RULE_SCORING['slop-bigram'],
+  },
+
   // ── LLM-required semantic detections ─────────────────────────────────────
   {
     id: 'triple-construction',

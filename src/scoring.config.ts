@@ -1,7 +1,7 @@
 import type { ScoringMode, ViolationCategory } from './types'
 
 export const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
-  'word-choice': 1.0,
+  'word-choice': 1.2,
   'sentence-structure': 1.8,
   'rhetorical': 2.5,
   'framing': 2.8,
@@ -50,6 +50,7 @@ export const RULE_SCORING: Record<string, { scoringMode: ScoringMode; freeRate: 
   'exemplar-cliche':          { scoringMode: 'diminishing', freeRate: 0 },
   'chatbot-artifact':         { scoringMode: 'linear',      freeRate: 0 },
   'slop-trigram':             { scoringMode: 'diminishing', freeRate: 0 },
+  'slop-bigram':              { scoringMode: 'diminishing', freeRate: 0 },
   'triple-construction':      { scoringMode: 'threshold',   freeRate: 1.5 },
   'throat-clearing':          { scoringMode: 'linear',      freeRate: 0 },
   'sycophantic-frame':        { scoringMode: 'linear',      freeRate: 0 },
@@ -476,4 +477,46 @@ export const EVALUATIVE_INTENSIFIERS: Record<string, number> = {
   'undoubtedly':     1.00,
   'unquestionably':  1.00,
   'unmistakably':    0.95,
+}
+
+// Two-word sequences statistically overrepresented in AI prose relative to human
+// baselines (eqbench Slop Score / Paech et al., 2025). Stopwords ("of", "the",
+// "a") are stripped in the source data; the detector allows one optional word
+// between each pair so "glimmer hope" matches "glimmer of hope".
+export const SLOP_BIGRAMS: Record<string, number> = {
+  // ── Creative writing / narrative tells ──────────────────────────────────────
+  'brow furrowed':         0.82,
+  'eyes widened':          0.78,
+  'eyes narrowed':         0.75,
+  'swallowed hard':        0.85,
+  'cleared throat':        0.80,
+  'tilted head':           0.75,
+  'raised eyebrow':        0.80,
+  'mind racing':           0.72,
+  'dimly lit':             0.78,
+  'air crackled':          0.82,
+  'almost imperceptible':  0.85,
+  'glimmer hope':          0.75,
+  'beacon hope':           0.78,
+  'fabric reality':        0.85,
+  'felt surge':            0.75,
+  'face etched':           0.78,
+  'fell silent':           0.68,
+  'something akin':        0.70,
+  'beneath surface':       0.72,
+  'heart raced':           0.68,
+  'voice steady':          0.72,
+  'mind reeling':          0.75,
+  'eyes gleaming':         0.78,
+  // ── Essay / analytical tells ─────────────────────────────────────────────────
+  'inextricably linked':   0.85,
+  'unwavering commitment': 0.90,
+  'relentless pursuit':    0.85,
+  'deeply rooted':         0.75,
+  'deeply ingrained':      0.80,
+  'deeply embedded':       0.78,
+  'deeply intertwined':    0.82,
+  'fostering culture':     0.82,
+  'stakeholder engagement': 0.80,
+  'proactive approach':    0.78,
 }

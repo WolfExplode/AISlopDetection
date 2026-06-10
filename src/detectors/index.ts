@@ -52,6 +52,7 @@ import {
   detectStackedIntensifiers,
   detectScareQuotes,
   detectSlopTrigrams,
+  detectSlopBigrams,
 } from './wordPatterns'
 
 export function runClientDetectors(text: string): Violation[] {
@@ -99,6 +100,7 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectStackedIntensifiers(text),
     ...detectScareQuotes(text),
     ...detectSlopTrigrams(text),
+    ...detectSlopBigrams(text),
     ...detectVerbIntensifierForms(text),
     ...detectTripleConstruction(text),
     ...detectContextualSlop(text),
