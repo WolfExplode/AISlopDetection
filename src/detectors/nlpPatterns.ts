@@ -30,24 +30,46 @@ type NlpDoc = any
 // Simpler synonyms to suggest when flagging a slop verb, keyed by stem.
 // undefined = no suggestion (verb is too context-dependent to auto-replace)
 const VERB_REPLACEMENTS: Record<string, string | undefined> = {
-  showcase:   'show',
-  boast:      'have',
-  // Moved from INTENSIFIERS — verb deletion breaks sentences
-  leverage:   'use',
-  harness:    'use',
-  foster:     'build',
-  underscore: 'show',
-  navigate:   'handle',
-  streamline: 'simplify',
-  spearhead:  'lead',
-  craft:      'make',
-  bolster:    'support',
-  emphasize:  'stress',
-  enhance:    'improve',
-  garner:     'get',
-  delve:      undefined,  // "delve into" → no clean single-word swap
-  embark:     undefined,  // "embark on" → no clean single-word swap
-  resonate:   undefined,  // too context-dependent
+  showcase:    'show',
+  boast:       'have',
+  leverage:    'use',
+  harness:     'use',
+  foster:      'build',
+  underscore:  'show',
+  navigate:    'handle',
+  streamline:  'simplify',
+  spearhead:   'lead',
+  craft:       'make',
+  bolster:     'support',
+  emphasize:   'stress',
+  enhance:     'improve',
+  garner:      'get',
+  delve:       undefined,
+  embark:      undefined,
+  resonate:    undefined,
+}
+
+// Per-verb signal strength in the overused-intensifiers / elevated-register context
+const VERB_WEIGHTS: Record<string, number> = {
+  showcase:    0.70,
+  boast:       0.65,
+  leverage:    0.80,
+  harness:     0.75,
+  foster:      0.75,
+  underscore:  0.70,
+  navigate:    0.65,
+  streamline:  0.70,
+  spearhead:   0.75,
+  craft:       0.60,
+  bolster:     0.70,
+  emphasize:   0.40,
+  enhance:     0.45,
+  garner:      0.80,
+  delve:       1.00,
+  embark:      0.90,
+  resonate:    0.75,
+  illuminate:  0.70,
+  crystallize: 0.85,
 }
 
 // Strip trailing 'e' from a verb stem so the prefix matches all conjugated forms.
@@ -73,9 +95,9 @@ const TRIGGER_STEMS = [
   'way', 'manner', 'sense', 'fashion', 'regard',
   // Adjective intensifiers (context-sensitive): toStemPrefix strips trailing 'e',
   // so 'dynamic' → 'dynami' which prefix-matches dynamic/dynamics/dynamically.
-  ...ADJECTIVE_INTENSIFIERS.map(toStemPrefix),
+  ...Object.keys(ADJECTIVE_INTENSIFIERS).map(toStemPrefix),
   // Context-sensitive adverbs: no conjugation, add exact words.
-  ...CONTEXT_SENSITIVE_ADVERBS,
+  ...Object.keys(CONTEXT_SENSITIVE_ADVERBS),
 ]
 
 // Single fast regex used to pre-filter text before any NLP work
@@ -175,6 +197,7 @@ function verbViolations(doc: NlpDoc, stem: RegExp, ruleId: string): Violation[] 
       startIndex: start,
       endIndex: start + length,
       matchedText: term.text,
+      weight: VERB_WEIGHTS[base ?? ''] ?? 0.70,
       suggestedChange,
     })
   }
@@ -257,6 +280,7 @@ export function detectVerbIntensifierForms(text: string): Violation[] {
   for (const stem of OVERUSED_VERB_STEMS) {
     const replacement = VERB_REPLACEMENTS[stem]
     if (replacement === undefined) continue  // no clean swap (delve, embark, resonate)
+    const weight = VERB_WEIGHTS[stem] ?? 0.70
     const prefix = toStemPrefix(stem)
     const sForm = stem.endsWith('e') ? prefix + 'es' : prefix + 's'
     const ingForm = prefix + 'ing'
@@ -269,6 +293,7 @@ export function detectVerbIntensifierForms(text: string): Violation[] {
           startIndex: m.index,
           endIndex: m.index + m[0].length,
           matchedText: m[0],
+          weight,
           suggestedChange: suggestion,
         })
       }
@@ -295,7 +320,8 @@ const SEMI_COPULA_PAT = 'remain|remains|remained|seem|seems|seemed|appear|appear
  */
 function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
   const violations: Violation[] = []
-  for (const word of ADJECTIVE_INTENSIFIERS) {
+  for (const word of Object.keys(ADJECTIVE_INTENSIFIERS)) {
+    const weight = ADJECTIVE_INTENSIFIERS[word]
     const permitted = ADJECTIVE_PERMITTED_FOLLOWING[word] ?? []
 
     // Build permitted compound positions via exact text matching — more reliable than
@@ -320,7 +346,7 @@ function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
       if (!term?.offset) return
       if (permittedPositions.has(term.offset.start)) return
       const { start, length } = term.offset
-      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: term.text })
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: term.text, weight })
     })
 
     // Case 2: attributive — "[word] #Noun", flag the adjective (terms[0]).
@@ -333,7 +359,7 @@ function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
       if (!adjTerm?.offset) return
       if (permittedPositions.has(adjTerm.offset.start)) return
       const { start, length } = adjTerm.offset
-      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: adjTerm.text })
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: adjTerm.text, weight })
     })
   }
   return violations
@@ -349,7 +375,7 @@ function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
  */
 function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[] {
   const candidates: Violation[] = []
-  for (const adverb of CONTEXT_SENSITIVE_ADVERBS) {
+  for (const adverb of Object.keys(CONTEXT_SENSITIVE_ADVERBS)) {
     // Modifying an adjective: "quietly powerful", "clearly superior"
     candidates.push(...firstTermViolations(doc, `${adverb} #Adjective`, ruleId))
     // Gerund used as adjective: "deeply concerning", "remarkably unsettling"
@@ -367,7 +393,7 @@ function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[]
   // Gerunds are excluded from this suppression because they often act as adjectives
   // ("deeply concerning", "quietly revolutionary") rather than action verbs.
   const beforeActionVerb = new Set<number>()
-  for (const adverb of CONTEXT_SENSITIVE_ADVERBS) {
+  for (const adverb of Object.keys(CONTEXT_SENSITIVE_ADVERBS)) {
     doc.match(`${adverb} #Verb`).forEach((m: NlpDoc) => {
       const matches = m.json({ offset: true, tags: true }) as MatchJson[]
       if (!matches.length) return
@@ -379,16 +405,18 @@ function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[]
       beforeActionVerb.add(adverbTerm.offset.start)
     })
   }
-  return candidates.filter(v => !beforeActionVerb.has(v.startIndex))
+  return candidates
+    .filter(v => !beforeActionVerb.has(v.startIndex))
+    .map(v => ({ ...v, weight: CONTEXT_SENSITIVE_ADVERBS[v.matchedText.toLowerCase()] ?? 0.55 }))
 }
 
 /** Run all NLP sub-detectors on a pre-parsed doc; positions are chunk-relative */
 function runNlpDetectors(doc: NlpDoc, chunkText: string): Violation[] {
   const v: Violation[] = []
-  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifiers'))
+  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifiers').map(x => ({ ...x, weight: 0.60 })))
   v.push(...verbViolations(doc, OVERUSED_VERB_RE, 'overused-intensifiers'))
   v.push(...verbViolations(doc, /^craft/i, 'elevated-register'))
-  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifiers'))
+  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifiers').map(x => ({ ...x, weight: 0.75 })))
   v.push(...detectAdjectiveIntensifiers(doc, 'overused-intensifiers'))
   v.push(...detectContextSensitiveAdverbs(doc, 'filler-adverbs'))
   return v

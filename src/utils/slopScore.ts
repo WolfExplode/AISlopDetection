@@ -62,23 +62,45 @@ export function computeSlopScore(
 ): SlopScore {
   if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0 }
 
-  const countByRule = countViolationsByRule(violations, hiddenRules)
+  // Sum per-violation weights per rule.
+  // Grouped violations (same ruleId+groupKey) are one logical incident; their
+  // weight contribution is the average of the individual word weights in the group.
+  const weightByRule = new Map<string, number>()
+  const groupData = new Map<string, { ruleId: string; weights: number[] }>()
+
+  for (const v of violations) {
+    if (hiddenRules.has(v.ruleId)) continue
+    if (v.groupKey) {
+      const key = `${v.ruleId}::${v.groupKey}`
+      const entry = groupData.get(key) ?? { ruleId: v.ruleId, weights: [] }
+      entry.weights.push(v.weight ?? 1.0)
+      groupData.set(key, entry)
+    } else {
+      weightByRule.set(v.ruleId, (weightByRule.get(v.ruleId) ?? 0) + (v.weight ?? 1.0))
+    }
+  }
+
+  // Fold each group in as a single incident with average word weight
+  for (const { ruleId, weights } of groupData.values()) {
+    const avg = weights.reduce((a, b) => a + b, 0) / weights.length
+    weightByRule.set(ruleId, (weightByRule.get(ruleId) ?? 0) + avg)
+  }
 
   let weightedHits = 0
-  for (const [ruleId, count] of countByRule) {
+  for (const [ruleId, totalWeight] of weightByRule) {
     const rule = RULES_BY_ID[ruleId]
     if (!rule) continue
-    const weight = CATEGORY_WEIGHT[rule.category]
+    const catWeight = CATEGORY_WEIGHT[rule.category]
 
-    // How many instances are "free" at this text length
+    // How many weighted instances are "free" at this text length
     const freeCount = (wordCount / 1000) * rule.freeRate
-    const excessCount = Math.max(0, count - freeCount)
+    const excessWeight = Math.max(0, totalWeight - freeCount)
 
     if (rule.scoringMode === 'diminishing') {
-      weightedHits += applyDiminishing(weight, excessCount)
+      weightedHits += applyDiminishing(catWeight, excessWeight)
     } else {
       // 'linear' (freeRate always 0) and 'threshold' both apply full weight per excess instance
-      weightedHits += excessCount * weight
+      weightedHits += excessWeight * catWeight
     }
   }
 

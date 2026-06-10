@@ -33,6 +33,7 @@ export interface Violation {
   startIndex: number
   endIndex: number
   matchedText: string
+  weight?: number              // per-violation signal strength (0–1); defaults to 1.0 in scoring
   explanation?: string
   suggestedChange?: string | null  // null = explicitly no action (don't fall back to canRemove deletion)
   // When set, violations sharing the same ruleId+groupKey are counted as one logical

@@ -7,6 +7,9 @@ export interface PopoverViolationData {
   startIndex: number
   endIndex: number
   matchedText: string
+  weight?: number          // this violation's own signal weight (0–1)
+  clusterWeight?: number   // average weight across the group (stacked-intensifiers etc.)
+  clusterSize?: number     // how many violations share the group
   explanation?: string
   suggestedChange?: string | null
   applyStartIndex?: number
@@ -83,14 +86,56 @@ function InlineDiff({ before, after }: { before: string; after: string }) {
   )
 }
 
+function signalTier(w: number): { label: string; color: string } {
+  if (w >= 0.85) return { label: 'Near-exclusive tell', color: '#dc2626' }
+  if (w >= 0.65) return { label: 'Strong tell',         color: '#d97706' }
+  if (w >= 0.35) return { label: 'Moderate tell',       color: '#ca8a04' }
+  return               { label: 'Weak tell',            color: '#6b7280' }
+}
+
+function SignalStrength({ weight, clusterWeight, clusterSize, t }: {
+  weight: number
+  clusterWeight?: number
+  clusterSize?: number
+  t: ReturnType<typeof useTheme>
+}) {
+  const isCluster = clusterWeight !== undefined && clusterSize !== undefined && clusterSize > 1
+  const effective = isCluster ? clusterWeight! : weight
+  const { label, color } = signalTier(effective)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{
+          fontSize: '10px', fontFamily: 'sans-serif', textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: t.textFaintest, fontWeight: 600,
+        }}>
+          {isCluster ? `Signal strength (${clusterSize}-word cluster avg)` : 'Signal strength'}
+        </span>
+        <span style={{ fontSize: '11px', fontFamily: 'sans-serif', fontWeight: 600, color }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ flex: 1, height: '4px', background: t.borderLight, borderRadius: '2px', overflow: 'hidden' }}>
+          <div style={{ width: `${effective * 100}%`, height: '100%', background: color, borderRadius: '2px' }} />
+        </div>
+        <span style={{ fontSize: '10px', fontFamily: 'monospace', color: t.textFaintest, width: '28px', textAlign: 'right' }}>
+          {effective.toFixed(2)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 const POPOVER_WIDTH = 380
 
 export default function Popover({ state, onClose, onApply, onNextRule, onPrevRule }: Props) {
   const t = useTheme()
   const { rules, violations, anchorRect, ruleIndex } = state
   const rule = rules[ruleIndex]
-  const { startIndex, endIndex, matchedText, explanation, suggestedChange,
-          applyStartIndex, applyEndIndex, applyReplacement } = violations[ruleIndex] ?? violations[0]
+  const { startIndex, endIndex, matchedText, weight, clusterWeight, clusterSize,
+          explanation, suggestedChange, applyStartIndex, applyEndIndex, applyReplacement } = violations[ruleIndex] ?? violations[0]
   const popoverRef = useRef<HTMLDivElement>(null)
 
   const top = anchorRect.bottom + window.scrollY + 8
@@ -167,6 +212,10 @@ export default function Popover({ state, onClose, onApply, onNextRule, onPrevRul
 
       {/* Body */}
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {weight !== undefined && (
+          <SignalStrength weight={weight} clusterWeight={clusterWeight} clusterSize={clusterSize} t={t} />
+        )}
+
         <p style={{ margin: 0, fontSize: '13px', fontStyle: 'italic', fontFamily: 'Georgia, serif', color: t.textMuted, lineHeight: '1.6' }}>
           {explanation ?? rule.tip}
         </p>

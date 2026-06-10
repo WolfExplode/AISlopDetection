@@ -277,10 +277,24 @@ export default function App() {
       ) ?? violationsRef.current.find(
         v2 => v2.ruleId === ruleId && Math.abs(v2.startIndex - startIndex) < 20
       )
+
+      let clusterWeight: number | undefined
+      let clusterSize: number | undefined
+      if (v?.groupKey) {
+        const group = violationsRef.current.filter(
+          x => x.ruleId === ruleId && x.groupKey === v.groupKey
+        )
+        clusterSize = group.length
+        clusterWeight = group.reduce((sum, x) => sum + (x.weight ?? 1.0), 0) / group.length
+      }
+
       return {
         startIndex: v?.startIndex ?? startIndex,
         endIndex: v?.endIndex ?? endIndex,
         matchedText: v?.matchedText ?? textRef.current.slice(startIndex, endIndex),
+        weight: v?.weight,
+        clusterWeight,
+        clusterSize,
         explanation: v?.explanation,
         suggestedChange: v?.suggestedChange,
         applyStartIndex: v?.applyStartIndex,

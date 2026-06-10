@@ -1,54 +1,84 @@
 import type { Violation } from '../types'
 
 // Helper: find all case-insensitive matches of a word/phrase in text
-function findAll(text: string, pattern: RegExp, ruleId: string): Violation[] {
+function findAll(text: string, pattern: RegExp, ruleId: string, weight?: number): Violation[] {
   const violations: Violation[] = []
   let m: RegExpExecArray | null
   const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g')
   while ((m = re.exec(text)) !== null) {
-    violations.push({
+    const v: Violation = {
       ruleId,
       startIndex: m.index,
       endIndex: m.index + m[0].length,
       matchedText: m[0],
-    })
+    }
+    if (weight !== undefined) v.weight = weight
+    violations.push(v)
   }
   return violations
 }
 
-const INTENSIFIERS = [
-  'crucial', 'comprehensive',
-  'arguably', 'straightforward', 'noteworthy', 'realm', 'landscape',
-  'tapestry', 'multifaceted', 'nuanced', 'pivotal',
-  'unprecedented', 'paradigm', 'synergy',
-  'holistic', 'transformative', 'cutting-edge', 'innovative',
-  // From "words to watch" list
-  'enduring', 'interplay', 'intricate', 'intricacies',
-  'meticulous', 'meticulously', 'valuable', 'vibrant',
-  // From slopbuster/slopsquid: additional analytical prose markers
-  'paramount', 'overarching', 'actionable', 'seamless', 'salient',
-  'ubiquitous', 'myriad', 'aforementioned', 'quintessential',
-  // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
-]
+// vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
+const INTENSIFIERS: Record<string, number> = {
+  'crucial':       0.50,
+  'comprehensive': 0.55,
+  'arguably':      0.60,
+  'straightforward': 0.40,
+  'noteworthy':    0.65,
+  'realm':         0.70,
+  'landscape':     0.75,
+  'tapestry':      0.95,
+  'multifaceted':  0.85,
+  'nuanced':       0.80,
+  'pivotal':       0.70,
+  'unprecedented': 0.65,
+  'paradigm':      0.75,
+  'synergy':       0.70,
+  'holistic':      0.65,
+  'transformative': 0.80,
+  'cutting-edge':  0.60,
+  'innovative':    0.50,
+  'enduring':      0.55,
+  'interplay':     0.75,
+  'intricate':     0.65,
+  'intricacies':   0.70,
+  'meticulous':    0.75,
+  'meticulously':  0.80,
+  'valuable':      0.45,
+  'vibrant':       0.70,
+  'paramount':     0.80,
+  'overarching':   0.85,
+  'actionable':    0.65,
+  'seamless':      0.70,
+  'salient':       0.75,
+  'ubiquitous':    0.70,
+  'myriad':        0.75,
+  'aforementioned': 0.90,
+  'quintessential': 0.80,
+}
 
 // Multi-word phrases that are overused LLM clichés
-const INTENSIFIER_PHRASES = [
-  'align with',
-  'testament to',
-  // From slopbuster Rule 1 (significance inflation) / slopsquid academic preset
-  'indelible mark',
-  'key turning point',
-  'setting the stage',
-]
+const INTENSIFIER_PHRASES: Record<string, number> = {
+  'align with':        0.60,
+  'testament to':      0.85,
+  'indelible mark':    0.90,
+  'key turning point': 0.75,
+  'setting the stage': 0.70,
+}
 
 // Adjective intensifiers moved to NLP layer: flagged only in predicate position
 // (after copula) or attributive before non-excluded nouns. These words have
 // legitimate technical uses in specific compounds (vital signs, dynamic programming).
-export const ADJECTIVE_INTENSIFIERS = [
-  'vital', 'robust', 'dynamic', 'fundamental',
+export const ADJECTIVE_INTENSIFIERS: Record<string, number> = {
+  'vital':        0.55,
+  'robust':       0.65,
+  'dynamic':      0.60,
+  'fundamental':  0.55,
   // Evaluative praise adjectives: individually borderline, suspicious when stacked
-  'remarkable', 'fantastic', 'powerful',
-]
+  'remarkable':   0.60,
+  'fantastic':    0.35,
+  'powerful':     0.40,
+}
 
 // Per-adjective permitted following nouns. "[word] #Noun" is suppressed when the
 // noun (lowercase) appears in this list — established domain compounds where the
@@ -62,7 +92,12 @@ export const ADJECTIVE_PERMITTED_FOLLOWING: Record<string, string[]> = {
 
 // Adverbs moved to NLP layer: flagged only when modifying an adjective or
 // appearing sentence-initial before a comma — NOT when modifying an action verb.
-export const CONTEXT_SENSITIVE_ADVERBS = ['quietly', 'deeply', 'remarkably', 'clearly']
+export const CONTEXT_SENSITIVE_ADVERBS: Record<string, number> = {
+  'quietly':    0.60,
+  'deeply':     0.55,
+  'remarkably': 0.75,
+  'clearly':    0.50,
+}
 
 // Verb-type intensifiers — moved to NLP detector so deletion is replaced
 // with a correctly-conjugated simpler synonym (deleting a verb breaks the sentence)
@@ -74,112 +109,207 @@ export const VERB_INTENSIFIERS = [
   'showcase', 'illuminate', 'crystallize',
 ]
 
-const ELEVATED_REGISTER: [string, string | null][] = [
-  ['utilize', 'use'],
-  ['utilise', 'use'],
-  ['utilization', 'use'],
-  ['commence', 'start'],
-  ['commencement', 'start'],
-  ['facilitate', 'help'],
-  ['endeavor', 'try'],
-  ['endeavour', 'try'],
-  ['demonstrate', 'show'],
-  ['ascertain', 'find out'],
-  ['ameliorate', 'improve'],
-  ['elucidate', 'explain'],
-  ['promulgate', 'spread'],
-  ['cognizant', 'aware'],
-  ['pertaining to', 'about'],
-  ['in regards to', 'about'],
-  ['with regards to', 'about'],
-  ['with regard to', 'about'],
-  ['with respect to', 'about'],
-  ['in the context of', null],  // replacement is too context-dependent to automate
-  ['at this juncture', 'now'],
-  ['at this point in time', 'now'],
-  ['going forward', 'in future'],
-  ['moving forward', 'in future'],
-  ['in terms of', ''],
-  ['it is worth noting', ''],
-  ['it should be noted', ''],
-  ['one must consider', ''],
-  ['in light of', 'given'],
-  ['in the realm of', 'in'],
-  ['due to the fact that', 'because'],
-  // From slopbuster Rule 22 (filler phrases) — delete on apply
-  ['notwithstanding', 'despite'],
-  ['hitherto', 'until now'],
-  ['heretofore', 'until now'],
-  ['as a matter of fact', null],
-  ['the fact of the matter is', null],
-  ['for all intents and purposes', null],
-  ['at its core', null],
-  ['it goes without saying', null],
+const ELEVATED_REGISTER: [string, string | null, number][] = [
+  ['utilize',                      'use',       0.75],
+  ['utilise',                      'use',       0.75],
+  ['utilization',                  'use',       0.75],
+  ['commence',                     'start',     0.80],
+  ['commencement',                 'start',     0.80],
+  ['facilitate',                   'help',      0.65],
+  ['endeavor',                     'try',       0.75],
+  ['endeavour',                    'try',       0.75],
+  ['demonstrate',                  'show',      0.45],
+  ['ascertain',                    'find out',  0.85],
+  ['ameliorate',                   'improve',   0.95],
+  ['elucidate',                    'explain',   0.85],
+  ['promulgate',                   'spread',    0.90],
+  ['cognizant',                    'aware',     0.85],
+  ['pertaining to',                'about',     0.70],
+  ['in regards to',                'about',     0.55],
+  ['with regards to',              'about',     0.55],
+  ['with regard to',               'about',     0.50],
+  ['with respect to',              'about',     0.50],
+  ['in the context of',            null,        0.50],
+  ['at this juncture',             'now',       0.90],
+  ['at this point in time',        'now',       0.75],
+  ['going forward',                'in future', 0.70],
+  ['moving forward',               'in future', 0.75],
+  ['in terms of',                  '',          0.45],
+  ['it is worth noting',           '',          0.85],
+  ['it should be noted',           '',          0.85],
+  ['one must consider',            '',          0.80],
+  ['in light of',                  'given',     0.55],
+  ['in the realm of',              'in',        0.80],
+  ['due to the fact that',         'because',   0.70],
+  ['notwithstanding',              'despite',   0.75],
+  ['hitherto',                     'until now', 0.95],
+  ['heretofore',                   'until now', 0.95],
+  ['as a matter of fact',          null,        0.60],
+  ['the fact of the matter is',    null,        0.75],
+  ['for all intents and purposes', null,        0.70],
+  ['at its core',                  null,        0.75],
+  ['it goes without saying',       null,        0.80],
 ]
 
-const FILLER_ADVERBS = [
-  'importantly', 'essentially', 'fundamentally', 'ultimately',
-  'inherently', 'particularly', 'increasingly', 'certainly',
-  'undoubtedly', 'obviously', 'simply', 'basically',
-  'quite', 'very', 'really', 'truly', 'genuinely',
-  // quietly, deeply, remarkably, clearly moved to NLP layer (context-sensitive)
-]
+// quietly, deeply, remarkably, clearly moved to NLP layer (context-sensitive)
+const FILLER_ADVERBS: Record<string, number> = {
+  'importantly':  0.65,
+  'essentially':  0.60,
+  'fundamentally': 0.70,
+  'ultimately':   0.70,
+  'inherently':   0.75,
+  'particularly': 0.40,
+  'increasingly': 0.45,
+  'certainly':    0.55,
+  'undoubtedly':  0.90,
+  'obviously':    0.45,
+  'simply':       0.40,
+  'basically':    0.35,
+  'quite':        0.25,
+  'very':         0.20,
+  'really':       0.20,
+  'truly':        0.60,
+  'genuinely':    0.55,
+}
 
-const METAPHOR_CRUTCHES = [
-  'double-edged sword', 'tip of the iceberg', 'north star',
-  'building blocks', 'elephant in the room', 'perfect storm',
-  'game.changer', 'game changer', 'low.hanging fruit', 'low hanging fruit',
-  'move the needle', 'think outside the box', 'at the end of the day',
-  'paradigm shift', 'silver bullet', 'boiling the ocean',
-  'drinking the kool.aid', 'drinking the kool aid',
-  'put it on the back burner', 'circle back', 'deep dive',
-  'level up', 'hit the ground running', 'move fast and break things',
-  'the devil is in the details', 'on the same page',
-  'reinvent the wheel', 'touch base', 'bandwidth',
-  'bleeding edge', 'best of breed', 'boil down',
-  // From slopbuster/slopsquid: additional clichéd frames
-  'food for thought', 'the bigger picture', 'ahead of the curve',
-  'writing on the wall', 'canary in the coal mine',
-]
+const METAPHOR_CRUTCHES: Record<string, number> = {
+  'double-edged sword':          0.75,
+  'tip of the iceberg':          0.70,
+  'north star':                  0.80,
+  'building blocks':             0.65,
+  'elephant in the room':        0.65,
+  'perfect storm':               0.70,
+  'game.changer':                0.70,
+  'game changer':                0.70,
+  'low.hanging fruit':           0.75,
+  'low hanging fruit':           0.75,
+  'move the needle':             0.75,
+  'think outside the box':       0.65,
+  'at the end of the day':       0.60,
+  'paradigm shift':              0.80,
+  'silver bullet':               0.70,
+  'boiling the ocean':           0.75,
+  'drinking the kool.aid':       0.65,
+  'drinking the kool aid':       0.65,
+  'put it on the back burner':   0.65,
+  'circle back':                 0.70,
+  'deep dive':                   0.80,
+  'level up':                    0.60,
+  'hit the ground running':      0.65,
+  'move fast and break things':  0.55,
+  'the devil is in the details': 0.65,
+  'on the same page':            0.60,
+  'reinvent the wheel':          0.65,
+  'touch base':                  0.65,
+  'bandwidth':                   0.55,
+  'bleeding edge':               0.65,
+  'best of breed':               0.65,
+  'boil down':                   0.60,
+  'food for thought':            0.65,
+  'the bigger picture':          0.70,
+  'ahead of the curve':          0.70,
+  'writing on the wall':         0.65,
+  'canary in the coal mine':     0.70,
+}
 
-const FALSE_CONCLUSION_PHRASES = [
-  'in conclusion', 'to conclude', 'in summary', 'to summarize',
-  'to sum up', 'in closing', 'overall,', 'all in all',
-  'at the end of the day', 'when all is said and done',
-  'taking everything into account', 'taking everything into consideration',
-  'all things considered', 'moving forward', 'going forward',
-  // From slopbuster Rule 24 (generic positive conclusions) / Rule 6 (formulaic future prospects)
-  'the future looks bright', 'exciting times ahead', 'exciting times lie ahead',
-  'only time will tell', 'remains to be seen', 'poised for growth',
-  'poised for success', 'continues to thrive', 'moving in the right direction',
-]
+const FALSE_CONCLUSION_PHRASES: Record<string, number> = {
+  'in conclusion':                       0.90,
+  'to conclude':                         0.85,
+  'in summary':                          0.85,
+  'to summarize':                        0.85,
+  'to sum up':                           0.80,
+  'in closing':                          0.85,
+  'overall,':                            0.70,
+  'all in all':                          0.75,
+  'at the end of the day':               0.60,
+  'when all is said and done':           0.80,
+  'taking everything into account':      0.85,
+  'taking everything into consideration': 0.85,
+  'all things considered':               0.75,
+  'moving forward':                      0.70,
+  'going forward':                       0.70,
+  'the future looks bright':             0.95,
+  'exciting times ahead':                0.95,
+  'exciting times lie ahead':            0.95,
+  'only time will tell':                 0.85,
+  'remains to be seen':                  0.80,
+  'poised for growth':                   0.90,
+  'poised for success':                  0.90,
+  'continues to thrive':                 0.85,
+  'moving in the right direction':       0.85,
+}
 
-const CONNECTOR_WORDS = [
-  'furthermore', 'moreover', 'additionally', 'however', 'nevertheless',
-  'nonetheless', 'consequently', 'therefore', 'thus', 'hence',
-  'in addition', 'as a result', 'for instance', 'for example',
-  'in contrast', 'on the other hand', 'on the contrary', 'that said',
-  'having said that', 'with that in mind', 'it follows that',
-  'interestingly', 'notably', 'significantly',
-  // From slopbuster Rule 22: over-explaining transitions
-  'in other words', 'to put it another way', 'that is to say',
-]
+const CONNECTOR_WORDS: Record<string, number> = {
+  'furthermore':          0.70,
+  'moreover':             0.70,
+  'additionally':         0.65,
+  'however':              0.30,
+  'nevertheless':         0.65,
+  'nonetheless':          0.65,
+  'consequently':         0.60,
+  'therefore':            0.40,
+  'thus':                 0.45,
+  'hence':                0.55,
+  'in addition':          0.50,
+  'as a result':          0.40,
+  'for instance':         0.45,
+  'for example':          0.35,
+  'in contrast':          0.45,
+  'on the other hand':    0.45,
+  'on the contrary':      0.55,
+  'that said':            0.60,
+  'having said that':     0.70,
+  'with that in mind':    0.75,
+  'it follows that':      0.70,
+  'interestingly':        0.75,
+  'notably':              0.60,
+  'significantly':        0.55,
+  'in other words':       0.60,
+  'to put it another way': 0.80,
+  'that is to say':       0.70,
+}
 
-const UNNECESSARY_CONTRAST_PHRASES = [
-  'whereas', 'as opposed to', 'unlike', 'in contrast to',
-  'contrary to', 'conversely',
-]
+const UNNECESSARY_CONTRAST_PHRASES: Record<string, number> = {
+  'whereas':       0.50,
+  'as opposed to': 0.55,
+  'unlike':        0.35,
+  'in contrast to': 0.55,
+  'contrary to':   0.60,
+  'conversely':    0.70,
+}
 
-const HEDGE_WORDS = [
-  'perhaps', 'arguably', 'seemingly', 'apparently', 'ostensibly',
-  'possibly', 'potentially', 'conceivably', 'presumably', 'supposedly',
-  'it could be argued', 'it might be', 'it may be', 'it seems',
-  'it appears', 'one might', 'some would say', 'in some ways',
-  'to some extent', 'in a sense', 'sort of',
-  // "kind of" only as a filler qualifier, not as a classifier ("a kind of X")
-  'is kind of', 'are kind of', 'was kind of', 'were kind of',
-  'feels kind of', 'seems kind of', 'sounds kind of', 'looks kind of',
-]
+// "kind of" only as a filler qualifier, not as a classifier ("a kind of X")
+const HEDGE_WORDS: Record<string, number> = {
+  'perhaps':           0.40,
+  'arguably':          0.65,
+  'seemingly':         0.60,
+  'apparently':        0.45,
+  'ostensibly':        0.75,
+  'possibly':          0.35,
+  'potentially':       0.50,
+  'conceivably':       0.75,
+  'presumably':        0.60,
+  'supposedly':        0.50,
+  'it could be argued': 0.70,
+  'it might be':       0.55,
+  'it may be':         0.50,
+  'it seems':          0.45,
+  'it appears':        0.50,
+  'one might':         0.65,
+  'some would say':    0.75,
+  'in some ways':      0.60,
+  'to some extent':    0.60,
+  'in a sense':        0.55,
+  'sort of':           0.35,
+  'is kind of':        0.30,
+  'are kind of':       0.30,
+  'was kind of':       0.30,
+  'were kind of':      0.30,
+  'feels kind of':     0.30,
+  'seems kind of':     0.30,
+  'sounds kind of':    0.30,
+  'looks kind of':     0.30,
+}
 
 // Abstract nouns that follow "highlight(s/ed/ing) the" in LLM slop constructions.
 // Literal uses ("highlights the text", "highlights them") are excluded by this list.
@@ -211,20 +341,20 @@ export function detectHighlightSlop(text: string): Violation[] {
 
 export function detectOverusedIntensifiers(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const word of INTENSIFIERS) {
+  for (const [word, weight] of Object.entries(INTENSIFIERS)) {
     const re = new RegExp(`\\b${word}s?(?:-\\w+)*\\b`, 'gi')
-    violations.push(...findAll(text, re, 'overused-intensifiers'))
+    violations.push(...findAll(text, re, 'overused-intensifiers', weight))
   }
-  for (const phrase of INTENSIFIER_PHRASES) {
+  for (const [phrase, weight] of Object.entries(INTENSIFIER_PHRASES)) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    violations.push(...findAll(text, new RegExp(`\\b${escaped}\\b`, 'gi'), 'overused-intensifiers'))
+    violations.push(...findAll(text, new RegExp(`\\b${escaped}\\b`, 'gi'), 'overused-intensifiers', weight))
   }
   return violations
 }
 
 export function detectElevatedRegister(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const [elevated, replacement] of ELEVATED_REGISTER) {
+  for (const [elevated, replacement, weight] of ELEVATED_REGISTER) {
     const escaped = elevated.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const re = new RegExp(`\\b${escaped}\\b`, 'gi')
     let m: RegExpExecArray | null
@@ -234,6 +364,7 @@ export function detectElevatedRegister(text: string): Violation[] {
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],
+        weight,
         suggestedChange: replacement === null ? null : (replacement || undefined),
       })
     }
@@ -243,12 +374,12 @@ export function detectElevatedRegister(text: string): Violation[] {
 
 export function detectFillerAdverbs(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const word of FILLER_ADVERBS) {
+  for (const [word, weight] of Object.entries(FILLER_ADVERBS)) {
     const re = new RegExp(`\\b${word}\\b`, 'gi')
-    violations.push(...findAll(text, re, 'filler-adverbs'))
+    violations.push(...findAll(text, re, 'filler-adverbs', weight))
   }
   // "rather" only as vague intensifier ("rather good") — not in "rather than"
-  violations.push(...findAll(text, /\brather(?!\s+than)\b/gi, 'filler-adverbs'))
+  violations.push(...findAll(text, /\brather(?!\s+than)\b/gi, 'filler-adverbs', 0.40))
   return violations
 }
 
@@ -264,10 +395,10 @@ export function detectEraOpener(text: string): Violation[] {
 
 export function detectMetaphorCrutch(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const phrase of METAPHOR_CRUTCHES) {
+  for (const [phrase, weight] of Object.entries(METAPHOR_CRUTCHES)) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\./g, '[- ]?')
     const re = new RegExp(`\\b${escaped}\\b`, 'gi')
-    violations.push(...findAll(text, re, 'metaphor-crutch'))
+    violations.push(...findAll(text, re, 'metaphor-crutch', weight))
   }
   return violations
 }
@@ -284,11 +415,11 @@ export function detectBroaderImplications(text: string): Violation[] {
 
 export function detectFalseConclusion(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const phrase of FALSE_CONCLUSION_PHRASES) {
+  for (const [phrase, weight] of Object.entries(FALSE_CONCLUSION_PHRASES)) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     // Flag when used to open a sentence/paragraph
     const re = new RegExp(`(^|[.!?]\\s+|\\n\\s*)${escaped}\\b`, 'gi')
-    violations.push(...findAll(text, re, 'false-conclusion'))
+    violations.push(...findAll(text, re, 'false-conclusion', weight))
   }
   return violations
 }
@@ -299,7 +430,7 @@ export function detectConnectorAddiction(text: string): Violation[] {
   // Apply span = boundary + connector + next char, so Apply can drop the connector
   // and capitalize the following word without a separate cleanup step.
   const violations: Violation[] = []
-  for (const word of CONNECTOR_WORDS) {
+  for (const [word, weight] of Object.entries(CONNECTOR_WORDS)) {
     const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const re = new RegExp(`(^|\\n\\s*|[.!?]\\s+)(${escaped}[,\\s]+)(\\w)`, 'gi')
     let m: RegExpExecArray | null
@@ -312,6 +443,7 @@ export function detectConnectorAddiction(text: string): Violation[] {
         startIndex: highlightStart,
         endIndex: highlightEnd,
         matchedText: text.slice(highlightStart, highlightEnd),
+        weight,
         suggestedChange: '',
         applyStartIndex: m.index,
         applyEndIndex: m.index + fullMatch.length,
@@ -324,10 +456,10 @@ export function detectConnectorAddiction(text: string): Violation[] {
 
 export function detectUnnecessaryContrast(text: string): Violation[] {
   const violations: Violation[] = []
-  for (const phrase of UNNECESSARY_CONTRAST_PHRASES) {
+  for (const [phrase, weight] of Object.entries(UNNECESSARY_CONTRAST_PHRASES)) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const re = new RegExp(`\\b${escaped}\\b`, 'gi')
-    violations.push(...findAll(text, re, 'unnecessary-contrast'))
+    violations.push(...findAll(text, re, 'unnecessary-contrast', weight))
   }
   return violations
 }
@@ -495,6 +627,9 @@ export function detectQuestionThenAnswer(text: string): Violation[] {
   return violations
 }
 
+// Only genuinely hedging modals; "should"/"would" are normative/conditional, not hedges
+const MODAL_HEDGE_WEIGHTS: Record<string, number> = { 'might': 0.50, 'could': 0.50, 'may': 0.45 }
+
 // Detect hedge stacks: sentences with 2+ hedge words
 export function detectHedgeStack(text: string): Violation[] {
   const sentences = splitSentences(text)
@@ -504,21 +639,20 @@ export function detectHedgeStack(text: string): Violation[] {
   for (const sentence of sentences) {
     const lower = sentence.toLowerCase()
     const found: string[] = []
-    for (const hedge of HEDGE_WORDS) {
+    for (const hedge of Object.keys(HEDGE_WORDS)) {
       if (lower.includes(hedge)) found.push(hedge)
     }
-    // Also check modal verbs
-    // Only genuinely hedging modals; "should"/"would" are normative/conditional, not hedges
-    const modals = ['might', 'could', 'may']
-    for (const m of modals) {
+    for (const m of Object.keys(MODAL_HEDGE_WEIGHTS)) {
       if (new RegExp(`\\b${m}\\b`).test(lower)) found.push(m)
     }
     if (found.length >= 2) {
+      const totalW = found.reduce((sum, h) => sum + (HEDGE_WORDS[h] ?? MODAL_HEDGE_WEIGHTS[h] ?? 0.5), 0)
       violations.push({
         ruleId: 'hedge-stack',
         startIndex: offset,
         endIndex: offset + sentence.length,
         matchedText: sentence,
+        weight: totalW / found.length,
         explanation: `Contains ${found.length} hedges: ${found.slice(0, 4).join(', ')}`,
       })
     }
@@ -1102,16 +1236,40 @@ export function detectFalseRange(text: string): Violation[] {
 // borderline but strongly signal AI sycophantic amplification when 3+ appear
 // within a 3-sentence window.
 
-const EVALUATIVE_INTENSIFIERS = [
-  'remarkable', 'fantastic', 'powerful', 'extraordinary', 'incredible',
-  'amazing', 'profound', 'compelling', 'striking', 'brilliant', 'stunning',
-  'exceptional', 'groundbreaking', 'inspiring', 'masterful', 'impressive',
-  'breathtaking', 'fascinating', 'outstanding', 'impactful', 'insightful',
-  'invaluable', 'superb', 'phenomenal', 'marvelous', 'wonderful', 'magnificent',
-  'undoubtedly', 'unquestionably', 'unmistakably',
-]
+const EVALUATIVE_INTENSIFIERS: Record<string, number> = {
+  'remarkable':      0.60,
+  'fantastic':       0.35,
+  'powerful':        0.40,
+  'extraordinary':   0.60,
+  'incredible':      0.45,
+  'amazing':         0.35,
+  'profound':        0.65,
+  'compelling':      0.60,
+  'striking':        0.55,
+  'brilliant':       0.50,
+  'stunning':        0.55,
+  'exceptional':     0.60,
+  'groundbreaking':  0.75,
+  'inspiring':       0.50,
+  'masterful':       0.70,
+  'impressive':      0.45,
+  'breathtaking':    0.70,
+  'fascinating':     0.55,
+  'outstanding':     0.60,
+  'impactful':       0.80,
+  'insightful':      0.75,
+  'invaluable':      0.70,
+  'superb':          0.60,
+  'phenomenal':      0.65,
+  'marvelous':       0.65,
+  'wonderful':       0.40,
+  'magnificent':     0.60,
+  'undoubtedly':     0.90,
+  'unquestionably':  0.85,
+  'unmistakably':    0.80,
+}
 
-const EVALUATIVE_RE = new RegExp(`\\b(${EVALUATIVE_INTENSIFIERS.join('|')})\\b`, 'gi')
+const EVALUATIVE_RE = new RegExp(`\\b(${Object.keys(EVALUATIVE_INTENSIFIERS).join('|')})\\b`, 'gi')
 
 export function detectStackedIntensifiers(text: string): Violation[] {
   const violations: Violation[] = []
@@ -1163,6 +1321,7 @@ export function detectStackedIntensifiers(text: string): Violation[] {
               startIndex: para.start + hit.offsetInPara,
               endIndex: para.start + hit.offsetInPara + hit.length,
               matchedText: text.slice(para.start + hit.offsetInPara, para.start + hit.offsetInPara + hit.length),
+              weight: EVALUATIVE_INTENSIFIERS[hit.word] ?? 0.50,
               explanation,
             })
           }
