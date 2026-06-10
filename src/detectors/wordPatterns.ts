@@ -44,7 +44,11 @@ const INTENSIFIER_PHRASES = [
 // Adjective intensifiers moved to NLP layer: flagged only in predicate position
 // (after copula) or attributive before non-excluded nouns. These words have
 // legitimate technical uses in specific compounds (vital signs, dynamic programming).
-export const ADJECTIVE_INTENSIFIERS = ['vital', 'robust', 'dynamic', 'fundamental']
+export const ADJECTIVE_INTENSIFIERS = [
+  'vital', 'robust', 'dynamic', 'fundamental',
+  // Evaluative praise adjectives: individually borderline, suspicious when stacked
+  'remarkable', 'fantastic', 'powerful',
+]
 
 // Per-adjective permitted following nouns. "[word] #Noun" is suppressed when the
 // noun (lowercase) appears in this list — established domain compounds where the
@@ -1090,5 +1094,84 @@ export function detectFalseRange(text: string): Violation[] {
     })
   }
 
+  return violations
+}
+
+// \u2500\u2500 Stacked intensifiers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Evaluative praise adjectives and certainty amplifiers that are individually
+// borderline but strongly signal AI sycophantic amplification when 3+ appear
+// within a 3-sentence window.
+
+const EVALUATIVE_INTENSIFIERS = [
+  'remarkable', 'fantastic', 'powerful', 'extraordinary', 'incredible',
+  'amazing', 'profound', 'compelling', 'striking', 'brilliant', 'stunning',
+  'exceptional', 'groundbreaking', 'inspiring', 'masterful', 'impressive',
+  'breathtaking', 'fascinating', 'outstanding', 'impactful', 'insightful',
+  'invaluable', 'superb', 'phenomenal', 'marvelous', 'wonderful', 'magnificent',
+  'undoubtedly', 'unquestionably', 'unmistakably',
+]
+
+const EVALUATIVE_RE = new RegExp(`\\b(${EVALUATIVE_INTENSIFIERS.join('|')})\\b`, 'gi')
+
+export function detectStackedIntensifiers(text: string): Violation[] {
+  const violations: Violation[] = []
+  const WINDOW_SIZE = 3
+  const THRESHOLD = 3
+
+  for (const para of splitParagraphs(text)) {
+    const sentences = splitSentences(para.text)
+
+    // Build sentence start offsets within para.text
+    const sentenceOffsets: number[] = []
+    let off = 0
+    for (const s of sentences) {
+      sentenceOffsets.push(off)
+      off += s.length
+    }
+
+    // Find all individual word matches per sentence: {word, offsetInPara}
+    type Hit = { word: string; offsetInPara: number; length: number }
+    const hitsPerSentence: Hit[][] = sentences.map((s, si) => {
+      const hits: Hit[] = []
+      const re = new RegExp(EVALUATIVE_RE.source, 'gi')
+      let m: RegExpExecArray | null
+      while ((m = re.exec(s)) !== null) {
+        hits.push({ word: m[0].toLowerCase(), offsetInPara: sentenceOffsets[si] + m.index, length: m[0].length })
+      }
+      return hits
+    })
+
+    // Sliding window: when a window hits threshold, flag each word individually
+    // but share a groupKey so they count as one logical violation in the sidebar/scorer.
+    const flaggedOffsets = new Set<number>()
+    let clusterIndex = 0
+    let i = 0
+    while (i < sentences.length) {
+      const end = Math.min(i + WINDOW_SIZE, sentences.length)
+      const windowHits = hitsPerSentence.slice(i, end).flat()
+
+      if (windowHits.length >= THRESHOLD) {
+        const unique = [...new Set(windowHits.map(h => h.word))]
+        const explanation = `Stacked with ${windowHits.length} evaluative intensifiers: ${unique.slice(0, 4).join(', ')}`
+        const groupKey = `stacked-${para.start}-${clusterIndex++}`
+        for (const hit of windowHits) {
+          if (!flaggedOffsets.has(hit.offsetInPara)) {
+            flaggedOffsets.add(hit.offsetInPara)
+            violations.push({
+              ruleId: 'stacked-intensifiers',
+              groupKey,
+              startIndex: para.start + hit.offsetInPara,
+              endIndex: para.start + hit.offsetInPara + hit.length,
+              matchedText: text.slice(para.start + hit.offsetInPara, para.start + hit.offsetInPara + hit.length),
+              explanation,
+            })
+          }
+        }
+        i = end
+      } else {
+        i++
+      }
+    }
+  }
   return violations
 }

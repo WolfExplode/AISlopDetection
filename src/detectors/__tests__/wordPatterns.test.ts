@@ -39,6 +39,7 @@ import {
   detectExemplarCliche,
   detectChatbotArtifact,
   detectSignificancePhrases,
+  detectStackedIntensifiers,
 } from '../wordPatterns'
 
 // Helper: assert at least one violation of the given rule exists
@@ -968,5 +969,47 @@ describe('detectSignificancePhrases', () => {
   })
   it('flags "setting the stage"', () => {
     assertFires(detectSignificancePhrases('The opening chapter is setting the stage for conflict.'), 'significance-phrases')
+  })
+})
+
+// ── Stacked Intensifiers ───────────────────────────────────────────────────
+
+describe("detectStackedIntensifiers", () => {
+  const RULE = "stacked-intensifiers"
+
+  it("flags 3 evaluative adjectives in 3 sentences", () => {
+    const text = "Thank you for sharing this remarkable experience. It is a powerful case study. Revisiting this is a fantastic learning opportunity."
+    assertFires(detectStackedIntensifiers(text), RULE)
+  })
+
+  it("emits one violation per flagged word, not one for the whole span", () => {
+    const text = "Thank you for sharing this remarkable and undoubtedly intense personal experience. It is a powerful case study. Revisiting this through a clinical lens is a fantastic learning opportunity."
+    const vs = detectStackedIntensifiers(text).filter(v => v.ruleId === RULE)
+    expect(vs.length).toBeGreaterThanOrEqual(3)
+    for (const v of vs) {
+      expect(v.endIndex - v.startIndex).toBeLessThan(20)
+    }
+    expect(vs.some(v => v.matchedText.toLowerCase() === "remarkable")).toBe(true)
+    expect(vs.some(v => v.matchedText.toLowerCase() === "powerful")).toBe(true)
+  })
+
+  it("does not flag 2 evaluative adjectives in 3 sentences (below threshold)", () => {
+    const text = "This is a remarkable achievement. The results were solid and clear. Well done."
+    assertSilent(detectStackedIntensifiers(text), RULE)
+  })
+
+  it("does not flag across paragraph boundaries", () => {
+    const text = "This is a remarkable finding.\n\nIt is also incredible.\n\nThe outcome is phenomenal."
+    assertSilent(detectStackedIntensifiers(text), RULE)
+  })
+
+  it("flags when 3+ appear within a single sentence", () => {
+    const text = "This is a remarkable, incredible, and phenomenal result."
+    assertFires(detectStackedIntensifiers(text), RULE)
+  })
+
+  it("fires via runClientDetectors", () => {
+    const text = "What a remarkable piece of work. The insights are truly profound and compelling. This is an exceptional contribution to the field."
+    assertFires(runClientDetectors(text), RULE)
   })
 })

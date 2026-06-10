@@ -33,6 +33,28 @@ function applyDiminishing(weight: number, excessCount: number): number {
   return total
 }
 
+/**
+ * Count violations per rule, treating grouped violations (same ruleId+groupKey)
+ * as a single logical incident regardless of how many highlight spans they produce.
+ */
+export function countViolationsByRule(
+  violations: Violation[],
+  hiddenRules?: Set<string>,
+): Map<string, number> {
+  const countByRule = new Map<string, number>()
+  const seenGroups = new Set<string>()
+  for (const v of violations) {
+    if (hiddenRules?.has(v.ruleId)) continue
+    if (v.groupKey) {
+      const id = `${v.ruleId}:${v.groupKey}`
+      if (seenGroups.has(id)) continue
+      seenGroups.add(id)
+    }
+    countByRule.set(v.ruleId, (countByRule.get(v.ruleId) ?? 0) + 1)
+  }
+  return countByRule
+}
+
 export function computeSlopScore(
   violations: Violation[],
   wordCount: number,
@@ -40,12 +62,7 @@ export function computeSlopScore(
 ): SlopScore {
   if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0 }
 
-  // Group visible violations by ruleId
-  const countByRule = new Map<string, number>()
-  for (const v of violations) {
-    if (hiddenRules.has(v.ruleId)) continue
-    countByRule.set(v.ruleId, (countByRule.get(v.ruleId) ?? 0) + 1)
-  }
+  const countByRule = countViolationsByRule(violations, hiddenRules)
 
   let weightedHits = 0
   for (const [ruleId, count] of countByRule) {

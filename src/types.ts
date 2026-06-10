@@ -35,6 +35,9 @@ export interface Violation {
   matchedText: string
   explanation?: string
   suggestedChange?: string | null  // null = explicitly no action (don't fall back to canRemove deletion)
+  // When set, violations sharing the same ruleId+groupKey are counted as one logical
+  // incident in the sidebar and scorer (multiple highlights, one count).
+  groupKey?: string
   // When present, Apply uses this range + applyReplacement instead of the highlight span.
   // Allows highlighting just the problematic text while acting on a wider context
   // (e.g. highlight "For instance," but also remove the boundary and capitalize next word).

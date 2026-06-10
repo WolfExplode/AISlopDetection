@@ -48,6 +48,7 @@ import {
   detectExemplarCliche,
   detectChatbotArtifact,
   detectSignificancePhrases,
+  detectStackedIntensifiers,
 } from './wordPatterns'
 
 export function runClientDetectors(text: string): Violation[] {
@@ -91,6 +92,7 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectExemplarCliche(text),
     ...detectChatbotArtifact(text),
     ...detectSignificancePhrases(text),
+    ...detectStackedIntensifiers(text),
     ...detectVerbIntensifierForms(text),
     ...detectTripleConstruction(text),
     ...detectContextualSlop(text),

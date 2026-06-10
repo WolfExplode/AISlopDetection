@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
-import { computeSlopScore, RATING_COLOR } from '../utils/slopScore'
+import { computeSlopScore, countViolationsByRule, RATING_COLOR } from '../utils/slopScore'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -29,12 +29,9 @@ const CATEGORY_ORDER: ViolationCategory[] = [
 
 export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus }: Props) {
   const t = useTheme()
-  const countByRule = new Map<string, number>()
-  for (const v of violations) {
-    countByRule.set(v.ruleId, (countByRule.get(v.ruleId) ?? 0) + 1)
-  }
-
-  const totalHits = violations.filter(v => !hiddenRules.has(v.ruleId)).length
+  const countByRule = countViolationsByRule(violations)
+  const totalHits = Array.from(countViolationsByRule(violations, hiddenRules).values())
+    .reduce((sum, n) => sum + n, 0)
   const { score, rating } = computeSlopScore(violations, wordCount, hiddenRules)
   const scoreColor = RATING_COLOR[rating]
   const [showScoreInfo, setShowScoreInfo] = useState(false)
