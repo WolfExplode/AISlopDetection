@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
-import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT, type MattrResult } from '../utils/slopScore'
+import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT, type MattrResult, type WritingMetrics, type OverusedWord } from '../utils/slopScore'
+import type { WordfreqStatus } from '../hooks/useWordfreq'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
   onViolationBadgeClick: (ruleId: string) => void
   wordCount: number
   mattr: MattrResult | null
+  writingMetrics: WritingMetrics | null
+  wordOveruse: OverusedWord[] | null
+  wordfreqStatus: WordfreqStatus
   hasApiKey: boolean
   llmStatus: 'idle' | 'loading' | 'done' | 'stale' | 'error'
   width?: number
@@ -29,7 +33,7 @@ const CATEGORY_ORDER: ViolationCategory[] = [
   'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
 ]
 
-export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, mattr, hasApiKey, llmStatus, width = 350 }: Props) {
+export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, mattr, writingMetrics, wordOveruse, wordfreqStatus, hasApiKey, llmStatus, width = 350 }: Props) {
   const t = useTheme()
   const countByRule = countViolationsByRule(violations)
   const totalHits = Array.from(countViolationsByRule(violations, hiddenRules).values())
@@ -242,6 +246,68 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
         <div style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif', marginTop: '6px', marginBottom: '2px' }}>
           Words: {wordCount}
         </div>
+        {writingMetrics && (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textFaintest, fontFamily: 'sans-serif', marginBottom: '5px' }}>
+              Writing style
+            </div>
+            {([
+              ['Vocab level',      writingMetrics.fkGrade,            20,  1,   'Flesch-Kincaid grade level'],
+              ['Sentence length',  writingMetrics.avgSentenceLength,  50,  1,   'Average words per sentence'],
+              ['Rhythm variety',   writingMetrics.sentenceLengthCV,   0.8, 2,   'Sentence length CV — coefficient of variation. >0.3 = varied rhythm, <0.2 = suspiciously uniform'],
+              ['Paragraph length', writingMetrics.avgParagraphLength, 200, 1,   'Average words per paragraph'],
+              ['Dialogue freq',    writingMetrics.dialogueFrequency,  5,   1,   'Quoted dialogue per 1000 characters'],
+            ] as [string, number, number, number, string][]).map(([label, value, max, decimals, tip]) => (
+              <div key={label} title={tip} style={{ position: 'relative', height: '20px', display: 'flex', alignItems: 'center', marginBottom: '2px', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', inset: 0, background: t.link, opacity: 0.12, width: `${Math.min(100, (value / max) * 100).toFixed(1)}%`, borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                <span style={{ position: 'relative', fontSize: '11px', color: t.textFaint, fontFamily: 'sans-serif', paddingLeft: '6px', flex: 1 }}>{label}</span>
+                <span style={{ position: 'relative', fontSize: '11px', fontFamily: 'monospace', color: t.textFainter, paddingRight: '6px' }}>{value.toFixed(decimals)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Word overuse vs human baseline */}
+        {wordCount >= 50 && (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textFaintest, fontFamily: 'sans-serif', marginBottom: '5px' }}>
+              Word overuse vs human baseline
+            </div>
+            {wordfreqStatus === 'loading' && (
+              <div style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif', fontStyle: 'italic' }}>
+                Loading frequency data…
+              </div>
+            )}
+            {wordfreqStatus === 'error' && (
+              <div style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif', fontStyle: 'italic' }}>
+                Frequency data unavailable.
+              </div>
+            )}
+            {wordfreqStatus === 'ready' && wordOveruse !== null && wordOveruse.length === 0 && (
+              <div style={{ fontSize: '11px', color: t.textFaintest, fontFamily: 'sans-serif', fontStyle: 'italic' }}>
+                No words overused vs typical English.
+              </div>
+            )}
+            {wordfreqStatus === 'ready' && wordOveruse && wordOveruse.length > 0 && (() => {
+              const maxRatio = wordOveruse[0].ratio
+              return wordOveruse.map(({ word, count, ratio }) => {
+                const pct = Math.min(100, (ratio / maxRatio) * 100)
+                // Color scale: green → amber → red by ratio magnitude
+                const barColor = ratio >= 20 ? '#dc2626' : ratio >= 8 ? '#d97706' : '#2563eb'
+                return (
+                  <div
+                    key={word}
+                    title={`"${word}" appears ${count}× in this text — ${ratio.toFixed(1)}× more often than expected in typical English prose`}
+                    style={{ position: 'relative', height: '20px', display: 'flex', alignItems: 'center', marginBottom: '2px', borderRadius: '3px', overflow: 'hidden', cursor: 'default' }}
+                  >
+                    <div style={{ position: 'absolute', inset: 0, background: barColor, opacity: 0.12, width: `${pct.toFixed(1)}%`, borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                    <span style={{ position: 'relative', fontSize: '11px', color: t.textFaint, fontFamily: 'sans-serif', paddingLeft: '6px', flex: 1 }}>{word}</span>
+                    <span style={{ position: 'relative', fontSize: '11px', fontFamily: 'monospace', color: barColor, fontWeight: '600', paddingRight: '6px' }}>{ratio.toFixed(1)}×</span>
+                  </div>
+                )
+              })
+            })()}
+          </div>
+        )}
         <div style={{ height: '1px', background: t.border, margin: '14px 0' }} />
       </div>
 

@@ -937,6 +937,52 @@ export function detectChatbotArtifact(text: string): Violation[] {
   return violations
 }
 
+// ── Knowledge-cutoff disclaimers ─────────────────────────────────────────────
+// From slopbuster Rule 20: AI hedging about its own knowledge limits.
+// Humans either know something or don't mention it — they don't hedge about the
+// limits of their own knowledge the way an LLM does.
+
+export function detectKnowledgeCutoffDisclaimer(text: string): Violation[] {
+  const violations: Violation[] = []
+  const lower = text.toLowerCase()
+
+  const exactPhrases = [
+    'as of my last training',
+    'as of my knowledge cutoff',
+    'up to my knowledge cutoff',
+    'to my knowledge',
+    'as far as i know',
+    'based on available information',
+    'while specific details are',
+    'at the time of writing',
+    'as of this writing',
+  ]
+  for (const phrase of exactPhrases) {
+    let idx = lower.indexOf(phrase)
+    while (idx !== -1) {
+      violations.push({
+        ruleId: 'knowledge-cutoff-disclaimer',
+        startIndex: idx,
+        endIndex: idx + phrase.length,
+        matchedText: text.slice(idx, idx + phrase.length),
+      })
+      idx = lower.indexOf(phrase, idx + 1)
+    }
+  }
+
+  // "as of [month/year]" — e.g. "as of January 2024", "as of 2023"
+  violations.push(...findAll(text,
+    /\bas\s+of\s+(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+)?\d{4}\b/gi,
+    'knowledge-cutoff-disclaimer'))
+
+  // "my last update", "my training data", "my training cutoff"
+  violations.push(...findAll(text,
+    /\bmy\s+(?:last\s+)?(?:training(?:\s+(?:data|cutoff|update))?|knowledge\s+(?:base|cutoff))\b/gi,
+    'knowledge-cutoff-disclaimer'))
+
+  return violations
+}
+
 // ── Significance phrases ──────────────────────────────────────────────────────
 // From slopbuster Rule 1 / slopsquid academic preset: verb phrases that inflate
 // significance without substance. Handles common conjugation forms via regex.

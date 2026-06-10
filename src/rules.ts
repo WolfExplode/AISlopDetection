@@ -597,6 +597,20 @@ export const RULES: ViolationRule[] = [
     llmDirective: 'Remove chatbot scaffolding phrases ("I hope this helps", "feel free to", "great question", "don\'t hesitate to ask") entirely.',
     ...RULE_SCORING['chatbot-artifact'],
   },
+  {
+    id: 'knowledge-cutoff-disclaimer',
+    name: 'Knowledge-Cutoff Disclaimer',
+    category: 'rhetorical',
+    description: 'AI hedging about its own knowledge limits: "as of my last training," "to my knowledge," "based on available information." Humans don\'t hedge about their own knowledge this way — they either know something or don\'t mention it.',
+    tip: 'Either verify the fact and state it, or don\'t include the claim. Hedging about your own knowledge is an AI tell, not a human one.',
+    canRemove: true,
+    color: '#6366f1',
+    bgColor: 'rgba(99,102,241,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Remove knowledge-cutoff hedges ("as of my last training", "to my knowledge", "based on available information") — find the fact or drop the claim.',
+    llmDirective: 'Remove knowledge-cutoff disclaimers ("as of my last training", "to my knowledge", "based on available information") — state the fact directly or omit the claim.',
+    ...RULE_SCORING['knowledge-cutoff-disclaimer'],
+  },
 
   {
     id: 'slop-trigram',

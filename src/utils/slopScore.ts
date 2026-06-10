@@ -1,6 +1,7 @@
 import type { Violation, ViolationCategory } from '../types'
 import { RULES_BY_ID } from '../rules'
 import { CATEGORY_WEIGHT } from '../scoring.config'
+import type { WordfreqEn } from './wordfreq'
 
 export { CATEGORY_WEIGHT }
 
@@ -139,6 +140,52 @@ export function computeSlopScore(
   return { score, rating, weightedHits, breakdown }
 }
 
+export interface WritingMetrics {
+  fkGrade: number           // Flesch-Kincaid grade level
+  avgSentenceLength: number // words per sentence
+  sentenceLengthCV: number  // coefficient of variation of sentence lengths; >0.3 = varied rhythm
+  avgParagraphLength: number // words per paragraph
+  dialogueFrequency: number  // quote pairs per 1000 chars
+}
+
+function countSyllables(word: string): number {
+  word = word.toLowerCase()
+  if (word.length <= 3) return 1
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '')
+  word = word.replace(/^y/, '')
+  const m = word.match(/[aeiouy]{1,2}/g)
+  return m ? m.length : 1
+}
+
+export function computeWritingMetrics(text: string): WritingMetrics | null {
+  const words = text.match(/\b\w+\b/g) || []
+  if (words.length < 20) return null
+
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0)
+  const quotes = (text.match(/["“”]/g) || []).length
+
+  const totalSyllables = words.reduce((sum, w) => sum + countSyllables(w), 0)
+  const avgSPW = totalSyllables / words.length
+  const avgWPS = sentences.length > 0 ? words.length / sentences.length : words.length
+
+  // Coefficient of variation of sentence lengths (stdDev / mean).
+  // CV > 0.3 = naturally varied rhythm; < 0.2 = suspiciously uniform (slopbuster scoring).
+  const sentenceLengths = sentences.map(s => (s.match(/\b\w+\b/g) || []).length)
+  const mean = avgWPS
+  const sentenceLengthCV = sentenceLengths.length >= 2
+    ? Math.sqrt(sentenceLengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / sentenceLengths.length) / mean
+    : 0
+
+  return {
+    fkGrade: Math.max(0, 0.39 * avgWPS + 11.8 * avgSPW - 15.59),
+    avgSentenceLength: avgWPS,
+    sentenceLengthCV,
+    avgParagraphLength: paragraphs.length > 0 ? words.length / paragraphs.length : words.length,
+    dialogueFrequency: text.length > 0 ? (quotes / 2 / text.length) * 1000 : 0,
+  }
+}
+
 export interface MattrResult {
   value: number       // 0–1
   isFullTTR: boolean  // true when text is shorter than the window (no sliding)
@@ -199,4 +246,94 @@ export const RATING_COLOR: Record<SlopRating, string> = {
   Moderate: '#d97706',
   Heavy: '#dc2626',
   Slop: '#7c3aed',
+}
+
+// ── Human Baseline Word Overuse ───────────────────────────────────────────────
+
+export interface OverusedWord {
+  word: string
+  count: number
+  ratio: number  // observed rate / expected rate from human corpus
+  zipf: number   // expected Zipf score (higher = more common in English)
+}
+
+// NLTK English stopwords — same set as eqbench metrics.js
+const STOPWORDS = new Set([
+  'i','me','my','myself','we','our','ours','ourselves','you','your','yours',
+  'yourself','yourselves','he','him','his','himself','she','her','hers','herself',
+  'it','its','itself','they','them','their','theirs','themselves','what','which',
+  'who','whom','this','that','these','those','am','is','are','was','were','be',
+  'been','being','have','has','had','having','do','does','did','doing','a','an',
+  'the','and','but','if','or','because','as','until','while','of','at','by','for',
+  'with','about','against','between','into','through','during','before','after',
+  'above','below','to','from','up','down','in','out','on','off','over','under',
+  'again','further','then','once','here','there','when','where','why','how','all',
+  'any','both','each','few','more','most','other','some','such','no','nor','not',
+  'only','own','same','so','than','too','very','s','t','can','will','just','don',
+  'should','now','said','also','like','one','would','could','even','much','back',
+  'well','still','way','get','got','go','went','come','came','see','saw','know',
+  'knew','take','took','make','made','think','thought','look','looked','want',
+  'wanted','tell','told','ask','asked','seem','seemed','feel','felt','try','tried',
+  'leave','left','put','keep','kept','let','begin','began','show','showed','hear',
+  'heard','play','played','run','ran','move','moved','live','lived','believe',
+  'hold','held','bring','brought','happen','happened','write','wrote','provide',
+  'sit','sat','stand','stood','lose','lost','pay','paid','meet','met','include',
+  'continue','set','turn','turned','call','called','people','time','year','day',
+  'man','woman','child','world','life','hand','part','place','case','week','company',
+  'system','program','question','work','government','number','night','point','home',
+  'water','room','mother','area','money','story','fact','month','lot','right','study',
+  'book','eye','job','word','business','issue','side','kind','head','house','service',
+  'friend','father','power','hour','game','line','end','member','city','community',
+  'name','president','team','minute','idea','body','information','back','parent',
+  'face','others','level','office','door','health','person','art','war','history',
+  'party','result','change','morning','reason','research','girl','guy','moment',
+  'air','teacher','force','education','never','always','away','off','often','maybe',
+])
+
+/**
+ * Compute which content words in the text are most over-represented
+ * relative to their expected frequency in general English (from wordfreq).
+ *
+ * ratio = (observed word count / total words) / wordfreq.frequency(word)
+ *
+ * A ratio of 10 means the word appears 10× more often than expected.
+ * Requires ≥50 words and a loaded WordfreqEn instance.
+ */
+export function computeWordOveruse(
+  text: string,
+  wf: WordfreqEn,
+  topK = 8,
+): OverusedWord[] {
+  const tokens = text.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? []
+  const totalWords = tokens.length
+  if (totalWords < 50) return []
+
+  const counts = new Map<string, number>()
+  for (const t of tokens) {
+    if (STOPWORDS.has(t)) continue
+    counts.set(t, (counts.get(t) ?? 0) + 1)
+  }
+
+  const results: OverusedWord[] = []
+  for (const [word, count] of counts) {
+    // Require at least 2 occurrences, more for short texts
+    const minCount = totalWords < 200 ? 2 : 3
+    if (count < minCount) continue
+
+    const zipf = wf.zipfFrequency(word)
+    // Skip unknown words (zipf=0) and ultra-rare terms (zipf<1.5) — likely proper nouns/jargon
+    if (zipf < 1.5) continue
+
+    const expectedRate = wf.frequency(word)
+    if (expectedRate === 0) continue
+
+    const observedRate = count / totalWords
+    const ratio = observedRate / expectedRate
+    // Only surface meaningful overuse (at least 3× expected)
+    if (ratio < 3) continue
+
+    results.push({ word, count, ratio, zipf })
+  }
+
+  return results.sort((a, b) => b.ratio - a.ratio).slice(0, topK)
 }

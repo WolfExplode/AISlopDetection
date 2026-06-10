@@ -13,7 +13,8 @@ import { useHashText } from './hooks/useHashText'
 import { useDarkMode } from './hooks/useDarkMode'
 import { ThemeContext, lightTheme, darkTheme } from './theme'
 import { SAMPLE_TEXT } from './data/sampleText'
-import { computeMATTR } from './utils/slopScore'
+import { computeMATTR, computeWritingMetrics, computeWordOveruse } from './utils/slopScore'
+import { useWordfreq } from './hooks/useWordfreq'
 import SAMPLE_VIOLATIONS from './data/sampleViolations.json'
 
 const DEBOUNCE_MS = 350
@@ -560,6 +561,12 @@ export default function App() {
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   const mattr = useMemo(() => computeMATTR(text), [text])
+  const writingMetrics = useMemo(() => computeWritingMetrics(text), [text])
+  const { wf, status: wordfreqStatus } = useWordfreq()
+  const wordOveruse = useMemo(
+    () => (wf ? computeWordOveruse(text, wf) : null),
+    [text, wf]
+  )
   const stalePct = llmStatus === 'stale' ? stalePercent(lastAnalyzedTextRef.current, text) : 0
 
   const theme = darkMode ? darkTheme : lightTheme
@@ -786,6 +793,9 @@ export default function App() {
           onViolationBadgeClick={handleViolationBadgeClick}
           wordCount={wordCount}
           mattr={mattr}
+          writingMetrics={writingMetrics}
+          wordOveruse={wordOveruse}
+          wordfreqStatus={wordfreqStatus}
           hasApiKey={!!apiKey}
           llmStatus={llmStatus}
           width={sidebarWidth}

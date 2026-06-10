@@ -6,8 +6,6 @@ name: Release
 # release.yml); renaming/replacing the file would reset the counter.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
