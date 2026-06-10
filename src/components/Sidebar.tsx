@@ -13,6 +13,7 @@ interface Props {
   wordCount: number
   hasApiKey: boolean
   llmStatus: 'idle' | 'loading' | 'done' | 'stale' | 'error'
+  width?: number
 }
 
 const CATEGORY_LABELS: Record<ViolationCategory, string> = {
@@ -27,7 +28,7 @@ const CATEGORY_ORDER: ViolationCategory[] = [
   'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
 ]
 
-export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus }: Props) {
+export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, hasApiKey, llmStatus, width = 260 }: Props) {
   const t = useTheme()
   const countByRule = countViolationsByRule(violations)
   const totalHits = Array.from(countViolationsByRule(violations, hiddenRules).values())
@@ -47,7 +48,7 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
 
   return (
     <div className="violations-sidebar" style={{
-      width: '260px',
+      width: `${width}px`,
       flexShrink: 0,
       borderLeft: `1px solid ${t.border}`,
       background: t.surface,

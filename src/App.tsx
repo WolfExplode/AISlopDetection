@@ -91,6 +91,11 @@ export default function App() {
   } | null>(null)
   const sparkleButtonRef = useRef<HTMLDivElement>(null)
 
+  const [sidebarWidth, setSidebarWidth] = useState(260)
+  const isDraggingRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartWidthRef = useRef(0)
+
   const [sparkleHovered, setSparkleHovered] = useState(false)
   const [paraHighlightRect, setParaHighlightRect] = useState<DOMRect | null>(null)
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number; text: string; top: number; height: number; buttonLeft: number } | null>(null)
@@ -513,6 +518,30 @@ export default function App() {
     setPopover(null)
   }
 
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    dragStartXRef.current = e.clientX
+    dragStartWidthRef.current = sidebarWidth
+
+    const onMouseMove = (me: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const delta = dragStartXRef.current - me.clientX
+      setSidebarWidth(Math.max(180, Math.min(520, dragStartWidthRef.current + delta)))
+    }
+    const onMouseUp = () => {
+      isDraggingRef.current = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [sidebarWidth])
+
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   const stalePct = llmStatus === 'stale' ? stalePercent(lastAnalyzedTextRef.current, text) : 0
 
@@ -717,6 +746,20 @@ export default function App() {
           )}
         </div>
 
+        {/* Drag handle */}
+        <div
+          onMouseDown={handleDividerMouseDown}
+          style={{
+            width: '5px',
+            flexShrink: 0,
+            cursor: 'col-resize',
+            background: 'transparent',
+            position: 'relative',
+            zIndex: 10,
+          }}
+          title="Drag to resize sidebar"
+        />
+
         {/* Right sidebar */}
         <Sidebar
           violations={allViolations}
@@ -727,6 +770,7 @@ export default function App() {
           wordCount={wordCount}
           hasApiKey={!!apiKey}
           llmStatus={llmStatus}
+          width={sidebarWidth}
         />
       </div>
 
