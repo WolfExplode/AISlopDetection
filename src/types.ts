@@ -5,6 +5,11 @@ export type ViolationCategory =
   | 'structural'
   | 'framing'
 
+export type ScoringMode =
+  | 'linear'      // freeRate=0; full weight every instance (near-exclusive AI tells)
+  | 'threshold'   // first (wordCount/1000 * freeRate) instances free; full weight beyond
+  | 'diminishing' // freeRate=0; full weight for excess instances 1-3, then 1/√(i-2) decay
+
 export interface ViolationRule {
   id: string
   name: string
@@ -19,6 +24,8 @@ export interface ViolationRule {
   llmDetectionHint?: string           // detection description used in LLM analysis prompts
   rewriteHint?: string                // human-readable description shown in rewrite debug panel
   llmDirective?: string               // terse imperative sent to the model in rewrite prompts
+  scoringMode: ScoringMode
+  freeRate: number     // instances per 1000 words that cost nothing (0 for linear/diminishing)
 }
 
 export interface Violation {

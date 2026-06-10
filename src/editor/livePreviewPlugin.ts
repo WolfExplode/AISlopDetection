@@ -7,6 +7,77 @@ import { RangeSetBuilder } from '@codemirror/state'
 
 // ── Widgets ──────────────────────────────────────────────────────────────────
 
+type Alignment = 'left' | 'center' | 'right' | ''
+
+class TableWidget extends WidgetType {
+  rows: string[][]
+  alignments: Alignment[]
+  constructor(rows: string[][], alignments: Alignment[]) {
+    super()
+    this.rows = rows
+    this.alignments = alignments
+  }
+  toDOM() {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'cm-md-table-wrap'
+    const table = wrapper.appendChild(document.createElement('table'))
+    table.className = 'cm-md-table'
+    const thead = table.appendChild(document.createElement('thead'))
+    const headerRow = thead.appendChild(document.createElement('tr'))
+    for (let i = 0; i < this.rows[0].length; i++) {
+      const th = headerRow.appendChild(document.createElement('th'))
+      th.innerHTML = renderInlineMarkdown(this.rows[0][i])
+      if (this.alignments[i]) th.style.textAlign = this.alignments[i]
+    }
+    if (this.rows.length > 1) {
+      const tbody = table.appendChild(document.createElement('tbody'))
+      for (let r = 1; r < this.rows.length; r++) {
+        const tr = tbody.appendChild(document.createElement('tr'))
+        for (let i = 0; i < this.rows[r].length; i++) {
+          const td = tr.appendChild(document.createElement('td'))
+          td.innerHTML = renderInlineMarkdown(this.rows[r][i] ?? '')
+          if (this.alignments[i]) td.style.textAlign = this.alignments[i]
+        }
+      }
+    }
+    return wrapper
+  }
+  eq(other: TableWidget) {
+    return other instanceof TableWidget &&
+      JSON.stringify(other.rows) === JSON.stringify(this.rows) &&
+      JSON.stringify(other.alignments) === JSON.stringify(this.alignments)
+  }
+  ignoreEvent() { return false }
+}
+
+function parseTableCells(line: string): string[] {
+  return line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+}
+
+function renderInlineMarkdown(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+}
+
+function parseAlignment(cell: string): Alignment {
+  const c = cell.trim()
+  if (c.startsWith(':') && c.endsWith(':')) return 'center'
+  if (c.endsWith(':')) return 'right'
+  if (c.startsWith(':')) return 'left'
+  return ''
+}
+
+function isTableRow(line: string): boolean {
+  return line.includes('|') && line.trim().startsWith('|')
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|?[\s:|-]+\|/.test(line) && /[-]/.test(line) && !/[a-zA-Z0-9]/.test(line)
+}
+
 class HrWidget extends WidgetType {
   toDOM() {
     const hr = document.createElement('hr')
@@ -220,6 +291,39 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
       }
     },
   })
+
+  // Scan for markdown tables (line-by-line, no lezer table nodes needed)
+  const numLines = doc.lines
+  let li = 1
+  while (li <= numLines) {
+    const line1 = doc.line(li)
+    if (!isTableRow(line1.text) || li + 1 > numLines) { li++; continue }
+    const line2 = doc.line(li + 1)
+    if (!isTableSeparator(line2.text)) { li++; continue }
+
+    const tableLines = [line1, line2]
+    let j = li + 2
+    while (j <= numLines && isTableRow(doc.line(j).text)) {
+      tableLines.push(doc.line(j))
+      j++
+    }
+
+    const tableFrom = line1.from
+    const tableTo = tableLines[tableLines.length - 1].to
+
+    if (!cursorIn(state, tableFrom, tableTo)) {
+      const headerCells = parseTableCells(tableLines[0].text)
+      const alignments = parseTableCells(tableLines[1].text).map(parseAlignment)
+      const dataRows = tableLines.slice(2).map(l => parseTableCells(l.text))
+      decos.push({
+        from: tableFrom,
+        to: tableTo,
+        value: Decoration.replace({ widget: new TableWidget([headerCells, ...dataRows], alignments), block: true }),
+      })
+    }
+
+    li = j
+  }
 
   decos.sort((a, b) => a.from !== b.from ? a.from - b.from : a.to - b.to)
   const builder = new RangeSetBuilder<Decoration>()

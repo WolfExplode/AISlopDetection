@@ -714,13 +714,39 @@ export function detectAnaphoraAbuse(text: string): Violation[] {
     return first
   }
 
-  function flagRun(i: number, j: number, opener: string) {
-    const start = offsets[i]
-    const end = offsets[j - 1] + sentences[j - 1].length
-    violations.push({
-      ruleId: 'anaphora-abuse', startIndex: start, endIndex: end,
-      matchedText: text.slice(start, end), explanation: `"${opener}..." repeated ${j - i} times`,
-    })
+  // Returns the character length of the opener (including any leading conjunction)
+  // within sentence s, so we can highlight just that word or two-word span.
+  function openerLength(s: string, wordCount: number): number {
+    let pos = 0
+    while (pos < s.length && /\s/.test(s[pos])) pos++
+    // Skip a leading conjunction ("And they..." → skip "And ")
+    const conjMatch = s.slice(pos).match(/^(\w+)(\s+)/)
+    if (conjMatch && CONJUNCTIONS.has(conjMatch[1].toLowerCase())) {
+      pos += conjMatch[1].length + conjMatch[2].length
+    }
+    for (let w = 0; w < wordCount; w++) {
+      const wm = s.slice(pos).match(/^(\S+)/)
+      if (!wm) break
+      pos += wm[1].length
+      if (w < wordCount - 1) {
+        const ws = s.slice(pos).match(/^(\s+)/)
+        if (ws) pos += ws[1].length
+      }
+    }
+    return pos
+  }
+
+  function flagRun(i: number, j: number, opener: string, wordCount: number) {
+    const count = j - i
+    for (let k = i; k < j; k++) {
+      const sentStart = offsets[k]
+      const end = sentStart + openerLength(sentences[k], wordCount)
+      violations.push({
+        ruleId: 'anaphora-abuse', startIndex: sentStart, endIndex: end,
+        matchedText: text.slice(sentStart, end),
+        explanation: `"${opener}..." repeated ${count} times`,
+      })
+    }
   }
 
   let i = 0
@@ -730,14 +756,14 @@ export function detectAnaphoraAbuse(text: string): Violation[] {
     if (two) {
       let j = i + 1
       while (j < sentences.length && twoWordOpener(sentences[j]) === two) j++
-      if (j - i >= 3) { flagRun(i, j, two); i = j; continue }
+      if (j - i >= 3) { flagRun(i, j, two, 2); i = j; continue }
     }
     // Single-word opener from curated slop-indicative list
     const one = singleWordOpener(sentences[i])
     if (one) {
       let j = i + 1
       while (j < sentences.length && singleWordOpener(sentences[j]) === one) j++
-      if (j - i >= 3) { flagRun(i, j, one); i = j; continue }
+      if (j - i >= 3) { flagRun(i, j, one, 1); i = j; continue }
     }
     i++
   }

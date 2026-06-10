@@ -1,5 +1,5 @@
 import type { Violation, ViolationCategory } from '../types'
-import { RULES } from '../rules'
+import { RULES_BY_ID } from '../rules'
 
 const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
   'word-choice': 1,
@@ -17,7 +17,21 @@ export interface SlopScore {
   weightedHits: number
 }
 
-const ruleCategory = new Map(RULES.map(r => [r.id, r.category]))
+// Full weight for excess instances 1–3, then decay by 1/sqrt(i-2) for i > 3.
+// excessCount may be fractional (e.g. 0.5) when partially past the freeRate allowance.
+function applyDiminishing(weight: number, excessCount: number): number {
+  let total = 0
+  const full = Math.floor(excessCount)
+  const frac = excessCount - full
+  for (let i = 1; i <= full; i++) {
+    total += weight * (i <= 3 ? 1 : 1 / Math.sqrt(i - 2))
+  }
+  if (frac > 0) {
+    const next = full + 1
+    total += weight * frac * (next <= 3 ? 1 : 1 / Math.sqrt(next - 2))
+  }
+  return total
+}
 
 export function computeSlopScore(
   violations: Violation[],
@@ -26,11 +40,29 @@ export function computeSlopScore(
 ): SlopScore {
   if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0 }
 
-  let weightedHits = 0
+  // Group visible violations by ruleId
+  const countByRule = new Map<string, number>()
   for (const v of violations) {
     if (hiddenRules.has(v.ruleId)) continue
-    const cat = ruleCategory.get(v.ruleId) ?? 'word-choice'
-    weightedHits += CATEGORY_WEIGHT[cat]
+    countByRule.set(v.ruleId, (countByRule.get(v.ruleId) ?? 0) + 1)
+  }
+
+  let weightedHits = 0
+  for (const [ruleId, count] of countByRule) {
+    const rule = RULES_BY_ID[ruleId]
+    if (!rule) continue
+    const weight = CATEGORY_WEIGHT[rule.category]
+
+    // How many instances are "free" at this text length
+    const freeCount = (wordCount / 1000) * rule.freeRate
+    const excessCount = Math.max(0, count - freeCount)
+
+    if (rule.scoringMode === 'diminishing') {
+      weightedHits += applyDiminishing(weight, excessCount)
+    } else {
+      // 'linear' (freeRate always 0) and 'threshold' both apply full weight per excess instance
+      weightedHits += excessCount * weight
+    }
   }
 
   const score = Math.min(100, Math.round((weightedHits / wordCount) * 500))

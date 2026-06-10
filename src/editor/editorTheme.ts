@@ -124,5 +124,33 @@ export function buildEditorTheme(dark: boolean) {
     '.cm-violation': {
       // Base style — each span overrides with inline style from the rule
     },
+    '.cm-md-table-wrap': {
+      overflowX: 'auto',
+      width: '100%',
+      margin: '0.5em 0',
+      whiteSpace: 'normal',
+    },
+    '.cm-md-table': {
+      borderCollapse: 'collapse',
+      width: '100%',
+      margin: '0',
+      fontSize: '1em',
+      lineHeight: '1.6',
+      fontFamily: 'inherit',
+    },
+    '.cm-md-table th, .cm-md-table td': {
+      border: `1px solid ${dark ? '#3a3a3a' : '#ddd'}`,
+      padding: '6px 16px',
+      textAlign: 'left',
+      verticalAlign: 'top',
+    },
+    '.cm-md-table th': {
+      background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+      fontWeight: '700',
+      whiteSpace: 'nowrap',
+    },
+    '.cm-md-table tbody tr:hover td': {
+      background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+    },
   })
 }

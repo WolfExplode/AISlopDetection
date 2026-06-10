@@ -16,6 +16,16 @@ Just use the tool and find out. You know it when you see it. Unless... you are a
 
 "Slop" is the way things are phrased. It just sounds like AI.
 
+
+## Incorrect definitions of slop:
+- "AI slop" is the kind of text that's fluent, grammatical, and confidently structured—but hollow. It reads fine sentence by sentence and says almost nothing when you step back.
+    While this is correct, it doesn't quite describe the essence of slop.
+- 
+
+
+
+
+
 ## Why would we want to detect slop?
 
 As a writer, I'm getting tired of reading slop. Of thinking in slop. It's the way every thought is processed. The way the AI speaks. I've devloped this tool as a way to quantifiably detect and label slop. In a objective way. Something I can point to and say Look! There it is. There's the slop. 
