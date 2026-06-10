@@ -18,7 +18,8 @@ export function useWordfreq(): UseWordfreqResult {
         setWf(result)
         setStatus('ready')
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[wordfreq] load failed:', err)
         setStatus('error')
       })
   }, [])

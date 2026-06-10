@@ -33,10 +33,20 @@ export async function loadWordfreq(url: string): Promise<WordfreqEn> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
 
-  const gz = await response.arrayBuffer()
-  const stream = new Response(gz).body!.pipeThrough(new DecompressionStream('gzip'))
-  const decompressed = await new Response(stream).arrayBuffer()
-  const data = decode(new Uint8Array(decompressed)) as unknown[]
+  const raw = await response.arrayBuffer()
+  const bytes = new Uint8Array(raw)
+
+  // Vite dev server adds Content-Encoding: gzip so the browser auto-decompresses
+  // the .gz file before we see it. In production (Cloudflare Pages) it arrives raw.
+  // Sniff gzip magic bytes (0x1f 0x8b) to decide whether to decompress.
+  let buf: Uint8Array
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip'))
+    buf = new Uint8Array(await new Response(stream).arrayBuffer())
+  } else {
+    buf = bytes
+  }
+  const data = decode(buf) as unknown[]
 
   const header = data[0] as CbPackHeader
   if (!header || header.format !== 'cB' || header.version !== 1) {
