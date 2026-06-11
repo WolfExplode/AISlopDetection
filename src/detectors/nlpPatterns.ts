@@ -576,6 +576,64 @@ export function detectNegationPivotStructural(text: string): Violation[] {
   return violations
 }
 
+// ── Fragment negation ─────────────────────────────────────────────────────────
+
+/**
+ * Detect "Not X. Y." fragment pairs: a bare negation fragment (no verb, starts
+ * with "Not") followed immediately by a short positive reframe fragment.
+ * e.g. "Not the shiny draft. The one that scared you."
+ *      "Not what you know. What you do."
+ */
+export function detectFragmentNegation(text: string): Violation[] {
+  if (!/\bNot\s/m.test(text)) return []
+
+  const violations: Violation[] = []
+  const parts = text.split(/(\n\n+)/)
+  let docPos = 0
+
+  for (let pi = 0; pi < parts.length; pi++) {
+    const part = parts[pi]
+    if (pi % 2 === 1) { docPos += part.length; continue }
+
+    const paraOffset = docPos
+    docPos += part.length
+
+    if (!/\bNot\s/.test(part)) continue
+
+    const sentences = splitSentencesWithOffsets(part)
+
+    for (let i = 0; i < sentences.length - 1; i++) {
+      const s1 = sentences[i]
+      const s2 = sentences[i + 1]
+
+      // S1: starts with "Not " and is a noun-phrase or noun-clause fragment (no main verb)
+      if (!/^Not\s/i.test(s1.text.trimStart())) continue
+      if (s1.text.trim().split(/\s+/).length > 8) continue  // too long to be a fragment
+
+      // Allow "Not what/how/where/when/who..." — verb is inside a subordinate noun clause,
+      // not the main clause. "Not what you know." is still a fragment rhetorically.
+      const wordAfterNot = s1.text.trimStart().split(/\s+/)[1]?.toLowerCase().replace(/\W/g, '') ?? ''
+      const NOUN_CLAUSE_STARTERS = new Set(['what', 'how', 'where', 'when', 'which', 'that', 'who', 'whom', 'whose'])
+      if (nlp(s1.text).has('#Verb') && !NOUN_CLAUSE_STARTERS.has(wordAfterNot)) continue
+
+      // S2: short positive fragment or clause, not itself negated
+      if (s2.text.trim().split(/\s+/).length > 12) continue
+      if (NEG_PIVOT_RE.test(s2.text) && nlp(s2.text).has('#Negative')) continue
+
+      const start = paraOffset + s1.start
+      const end = paraOffset + s2.start + s2.text.length
+      violations.push({
+        ruleId: 'fragment-negation',
+        startIndex: start,
+        endIndex: end,
+        matchedText: text.slice(start, end),
+      })
+    }
+  }
+
+  return violations
+}
+
 // ── Short-hook paragraph ──────────────────────────────────────────────────────
 
 /**

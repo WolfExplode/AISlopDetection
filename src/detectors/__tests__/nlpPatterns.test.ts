@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural } from '../nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation } from '../nlpPatterns'
 import { runClientDetectors } from '../index'
 import type { Violation } from '../../types'
 
@@ -830,5 +830,39 @@ describe('detectNegationPivotStructural', () => {
 
   it('does not flag when negation is in the second clause, not the first', () => {
     expect(pivotViolations("Without any instruction or guidance, it becomes clear that he doesn't particularly care about making your arrival comfortable.").length).toBe(0)
+  })
+})
+
+// ── detectFragmentNegation ────────────────────────────────────────────────────
+
+describe('detectFragmentNegation', () => {
+  it('flags "Not X. Y." canonical form', () => {
+    const vs = detectFragmentNegation('Not the shiny draft. The one that scared you.')
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(true)
+  })
+
+  it('flags "Not what you know. What you do."', () => {
+    const vs = detectFragmentNegation('Not what you know. What you do.')
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(true)
+  })
+
+  it('flags "Not the easy path. The right one."', () => {
+    const vs = detectFragmentNegation('Not the easy path. The right one.')
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(true)
+  })
+
+  it('does not flag when S1 has a conjugated verb', () => {
+    const vs = detectFragmentNegation("Not everyone agrees with this. Some people think differently.")
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(false)
+  })
+
+  it('does not flag across paragraph boundaries', () => {
+    const vs = detectFragmentNegation('Not the shiny draft.\n\nThe one that scared you.')
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(false)
+  })
+
+  it('does not flag when S1 is too long to be a fragment', () => {
+    const vs = detectFragmentNegation('Not the version you carefully polished over three weeks of revision. The raw one.')
+    expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(false)
   })
 })

@@ -7,7 +7,7 @@ import type { Violation } from '../types'
 
 // Pre-built processor — reused across all calls
 const articleProcessor = retext().use(retextIndefiniteArticle)
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural } from './nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation } from './nlpPatterns'
 import {
   detectHighlightSlop,
   detectOverusedIntensifiers,
@@ -78,6 +78,7 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectEmDashPivot(text),
     ...detectNegationPivot(text),
     ...detectNegationPivotStructural(text),
+    ...detectFragmentNegation(text),
     ...detectColonElaboration(text),
     ...detectParentheticalQualifier(text),
     ...detectQuestionThenAnswer(text),

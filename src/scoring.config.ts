@@ -40,6 +40,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
 
   // ── Sentence structure ──────────────────────────────────────────────────────
   'negation-pivot':           { ruleWeight: 3.5, scoringMode: 'linear',      freeRate: 0 },
+  'fragment-negation':        { ruleWeight: 3.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'negation-countdown':       { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'serves-as':                { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
   'superficial-analysis':     { ruleWeight: 3.0, scoringMode: 'diminishing', freeRate: 0 },
@@ -47,7 +48,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'gerund-fragment-litany':   { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
   'anaphora-abuse':           { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 0.5 },
   'short-hook-paragraph':     { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
-  'staccato-burst':           { ruleWeight: 1.7, scoringMode: 'threshold',   freeRate: 0.5 },
+  'staccato-burst':           { ruleWeight: 2.1, scoringMode: 'threshold',   freeRate: 0.5 },
   'hedge-stack':              { ruleWeight: 1.8, scoringMode: 'threshold',   freeRate: 0.5 },
   'unnecessary-contrast':     { ruleWeight: 1.7, scoringMode: 'threshold',   freeRate: 0.5 },
   'parenthetical-qualifier':  { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 0 },
