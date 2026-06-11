@@ -16,7 +16,7 @@ import type { ScoringMode } from './types'
 //
 // These are judgment calls, not empirically fitted. The rating thresholds in
 // computeSlopScore assume roughly this scale; retune them if weights shift a lot.
-export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: ScoringMode; freeRate: number }> = {
+export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: ScoringMode; freeRate: number; instanceWeight?: number; diminishingFactor?: number }> = {
   // ── Word choice (lexical; per-word weights carry most of the signal) ────────
   'overused-intensifier':     { ruleWeight: 1.3, scoringMode: 'diminishing', freeRate: 0 },
   'elevated-register':        { ruleWeight: 1.5, scoringMode: 'diminishing', freeRate: 0 },
@@ -26,10 +26,13 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'almost-hedge':             { ruleWeight: 1.5, scoringMode: 'threshold',   freeRate: 0.5 },
 
   // ── Statistical n-gram / name tells (validated against human baselines) ─────
-  'slop-trigram':             { ruleWeight: 3.2, scoringMode: 'diminishing', freeRate: 0 },
-  'slop-bigram':              { ruleWeight: 2.5, scoringMode: 'diminishing', freeRate: 0 },
-  'fiction-body-language':    { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
-  'ai-character-name':        { ruleWeight: 2.8, scoringMode: 'diminishing', freeRate: 0 },
+  'slop-trigram':               { ruleWeight: 3.5, scoringMode: 'linear', freeRate: 0 },
+  'slop-bigram':                { ruleWeight: 2.5, scoringMode: 'linear', freeRate: 0 },
+  'fiction-body-language':      { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
+  'slop-word-character-name':   { ruleWeight: 3.2, scoringMode: 'diminishing', freeRate: 0, diminishingFactor: 0.3 },
+  'slop-word-atmospheric':      { ruleWeight: 1.2, scoringMode: 'diminishing', freeRate: 0 },
+  'slop-word-fantasy-vocab':    { ruleWeight: 1.5, scoringMode: 'diminishing', freeRate: 0 },
+  'slop-word-essay':            { ruleWeight: 1.5, scoringMode: 'diminishing', freeRate: 0 },
 
   // ── Definitive artifacts — a human almost never produces these ──────────────
   'chatbot-artifact':         { ruleWeight: 5.0, scoringMode: 'linear',      freeRate: 0 },
@@ -572,22 +575,303 @@ export const FICTION_BODY_LANGUAGE: Record<string, number> = {
   'beckoned':  0.75,
 }
 
-// AI-default fantasy character names (eqbench slop_list.json, Ael-/Kael-/El- families
-// + high-frequency AI names). Match only when capitalised — proper-noun usage.
-export const AI_CHARACTER_NAMES: string[] = [
-  // Ael- family (near-exclusively AI-invented)
-  'Aelara', 'Aeldrin', 'Aeliana', 'Aelion', 'Aella', 'Aelyn', 'Aelwyn',
-  // Kael- family
-  'Kael', 'Kaela', 'Kaelan', 'Kaelen', 'Kaelin', 'Kaelor',
-  // High-frequency AI defaults
-  'Elara', 'Theron', 'Lysander', 'Lysandra', 'Seraphina', 'Solara',
-  'Lyrien', 'Elysia', 'Elira', 'Eliora', 'Eldarion',
-  // AI villain / warrior names
-  'Malachor', 'Malazar', 'Draven', 'Vorlag', 'Zorax',
-  // AI sci-fi names
-  'Xyla', 'Xylar', 'Xylara', 'Zyla', 'Zylar', 'Caelum',
-  // Fantasy staples with very high AI frequency
-  'Zephyr', 'Aldric', 'Aldwyn',
+// ── Slop word lists (eqbench slop_list.json) ────────────────────────────────
+// Source: https://github.com/sam-paech/slop-score (MIT License)
+// Words statistically overrepresented in LLM output vs human baselines.
+
+// AI-default fantasy/sci-fi character and place names.
+// Stored Title Case; detector matches these case-sensitively (proper-noun usage only).
+export const SLOP_WORDS_CHARACTER_NAMES: string[] = [
+  // Ael- / Aether- family
+  'Adira', 'Aedan', 'Aelara', 'Aeldrin', 'Aeliana', 'Aelion', 'Aelius', 'Aella',
+  'Aeloria', 'Aelric', 'Aelyn', 'Aelwyn', 'Aerion',
+  'Aeternum', 'Aeternus', 'Aethel', 'Aethelburg', 'Aethelgard', 'Aethelred',
+  'Aethera', 'Aethereia', 'Aetheria', 'Aetherium', 'Aetherius', 'Aethon',
+  // Al- family
+  'Alara', 'Alaric', 'Alayna', 'Aldric', 'Aldwyn', 'Aleron', 'Amara',
+  // C- names
+  'Caelan', 'Caelum',
+  // D- names / IP references
+  'Dovahkiin', 'Drakon', 'Draven',
+  // E- / El- / Ely- family
+  'Eadric', 'Eamon', 'Eira',
+  'Elara', 'Eldarion', 'Elderglen', 'Eldergrove', 'Eldermere', 'Elderton',
+  'Eldoria', 'Eldrath', 'Eldric', 'Eldrid', 'Eldrin', 'Eldrion', 'Eldrith',
+  'Elian', 'Eliana', 'Elion', 'Eliora', 'Elira', 'Ellaria', 'Elliana',
+  'Elmsworth', 'Elowen', 'Elros', 'Elyas', 'Elyndor', 'Elyndra', 'Elyon',
+  'Elyra', 'Elys', 'Elysia', 'Elysion', 'Elysium',
+  'Eolan', 'Eolande', 'Eremon', 'Eridan', 'Eridani', 'Eryndor',
+  // F- names
+  'Finnian', 'Finnigan',
+  // G- names / IP
+  'Geralt', 'Gerta', 'Godric',
+  'Gorok', 'Gorthok', 'Grath', 'Grimbold', 'Grimgold', 'Grogg', 'Grognak', 'Grolak', 'Gruuz',
+  // H- place names
+  'Hargrove', 'Havenwood',
+  // I- names
+  'Ignarion', 'Ignis', 'Isolde',
+  // J- names
+  'Jarek', 'Jaxon', 'Joren',
+  // K- family
+  'Kael', 'Kaela', 'Kaelan', 'Kaelen', 'Kaelin', 'Kaelor', 'Kaelthar',
+  'Kaida', 'Kaito', 'Kalel', 'Kessari', 'Keth', 'Kethra',
+  'Krael', 'Kraelion', 'Kragoth', 'Krel', 'Krixon', 'Kryll',
+  // L- family
+  'Liora', 'Lira', 'Lirael', 'Liran', 'Lirien', 'Lirin', 'Lorian',
+  'Lumin', 'Lumina', 'Luminara', 'Luminari',
+  'Lyra', 'Lyrien', 'Lysander', 'Lysandra', 'Lysara',
+  // Mal- villains
+  'Malachai', 'Malachar', 'Malachor', 'Malakai', 'Malakar', 'Malakor',
+  'Malazar', 'Malkor', 'Malphas', 'Malric', 'Malus',
+  // M- other
+  'Meadowgrove', 'Morwen', 'Moros',
+  // N- / O- place names
+  'Nightshade', 'Oakhaven', 'Oelia',
+  // P- / R- names
+  'Penhaligon', 'Petrova', 'Renn', 'Ryker', 'Ryla',
+  // S- family
+  'Sadim', 'Seraphiel', 'Seraphina', 'Seraphine', 'Silas', 'Solara', 'Sylas', 'Sylvani',
+  // Thal- / Thor- / Th- family
+  'Taehal', 'Taren',
+  'Thalassa', 'Thalen', 'Thalion', 'Thalor', 'Thalos', 'Tharivol', 'Tharos', 'Tharros',
+  'Theron', 'Thog', 'Thoran', 'Thoren', 'Thorgar', 'Thorgrim', 'Thorne', 'Thrain', 'Thrax',
+  'Torvin',
+  // U- names
+  'Uthgar',
+  // V- family (villains / warriors)
+  'Vael', 'Valerius', 'Valoria', 'Valtor', 'Varek', 'Varen', 'Varyn', 'Vance',
+  'Veridia', 'Veridian', 'Veridium', 'Verran', 'Vespera', 'Vexar',
+  'Veyl', 'Veyn', 'Veyne', 'Veyra', 'Veyth',
+  'Vorath', 'Vorlag', 'Vorn', 'Vorne', 'Voryn', 'Voss', 'Vrook', 'Vrykali', 'Vrynn',
+  // W- place names
+  'Whisperwind', 'Whisperwood', 'Whiterun',
+  // X- sci-fi / fantasy names
+  'Xandros', 'Xaphan', 'Xaren', 'Xavius', 'Xendari',
+  'Xyla', 'Xylar', 'Xylara', 'Xylia', 'Xyra',
+  // Z- family
+  'Zafir', 'Zalrex', 'Zarek', 'Zarthus',
+  'Zephyr', 'Zephyra', 'Zephyria', 'Zephyrion', 'Zephyros', 'Zephyrus',
+  'Zorath', 'Zorax', 'Zorgon', 'Zorp', 'Zorvath',
+  'Zyla', 'Zylar', 'Zylara', 'Zyloth', 'Zylth', 'Zyn', 'Zyra',
+  // AI place name compounds
+  'Ashwood', 'Blackwood', 'Darkwood', 'Grimstone', 'Heartstone',
+  'Ironforge', 'Silverwood',
+]
+
+// Genre-specific vocabulary overrepresented in AI fantasy/sci-fi prose.
+// Matched case-insensitively.
+export const SLOP_WORDS_FANTASY_VOCAB: string[] = [
+  // Magic / arcane
+  'arcane', 'arcanus', 'archdemon', 'archmage', 'eldritch', 'enchantments',
+  'grimoire', 'grimoires', 'incantation', 'incantations', 'mages', 'necromancer',
+  'necromantic', 'runes', 'sigil', 'sigils', 'spellbook', 'spellbooks',
+  'spellcasting', 'tomes',
+  // Weapons / items
+  'greatsword', 'hilt', 'lockpick', 'lockpicking', 'lockpicks', 'sellsword', 'tankards',
+  // Fantasy world-building nouns
+  'allfather', 'bioluminescent', 'cartographer', 'chitinous', 'clockmaker',
+  'cobblestone', 'cobblestones', 'cultists', 'daedra', 'daedric', 'einherjar',
+  'guildmaster', 'guildmates', 'hivemind', 'ichor', 'insectoid', 'labyrinthine',
+  'mandibles', 'merfolk', 'orcish', 'tenebrous', 'townsfolk', 'treant', 'undercity',
+  // Sci-fi / cyberpunk vocabulary
+  'commlink', 'datapad', 'holographic', 'interdimensional', 'keycard', 'medbay',
+  'megacorps', 'plasteel', 'pyrokinetic', 'railguns', 'terrans', 'viewport',
+  'viewscreen', 'xenobiologist', 'xenobiology', 'xenolinguist', 'xenos',
+  // Light / atmosphere (fantasy-specific)
+  'firelight', 'lamplight', 'torchlight',
+]
+
+// Dramatic sensory and atmospheric words overrepresented in AI creative writing.
+// Matched case-insensitively.
+export const SLOP_WORDS_ATMOSPHERIC: string[] = [
+  // Motion / body language verbs
+  'absently', 'animatedly', 'arced', 'barked', 'blinked', 'blurted', 'boomed',
+  'bustled', 'bustling', 'buzzed', 'cackled', 'cascaded', 'clacked', 'clanged',
+  'clasped', 'clattered', 'clattering', 'clawed', 'clawing', 'clenched',
+  'coiling', 'crept', 'croaked', 'crouched', 'darted', 'darting', 'drawled',
+  'droned', 'echoed', 'echoing', 'erupted', 'exclaimed', 'faltered',
+  'fidgeted', 'flinched', 'flitted', 'fluttered', 'froze', 'furrowed', 'furrowing',
+  'gaped', 'gasped', 'gestured', 'gesturing', 'glanced', 'glances', 'glancing',
+  'glared', 'glided', 'grinned', 'gripped', 'groaned', 'growled', 'grumbled',
+  'grunted', 'gurgled', 'hefted', 'hefting', 'hesitantly', 'hesitated',
+  'hissed', 'hitched', 'hovered', 'howled', 'huddled', 'hummed', 'humming',
+  'hunched', 'hurried', 'hurtled', 'interjected', 'intoned', 'jolted',
+  'knelt', 'lanced', 'leaned', 'lingered', 'loomed', 'lunged', 'lurched',
+  'lurked', 'marveled', 'marveling', 'materialized', 'materializing',
+  'mingling', 'mumbled', 'mused', 'muttered', 'narrowed', 'narrowing',
+  'nestled', 'nodded', 'nuzzled', 'panted', 'pattered', 'paused', 'peered',
+  'perked', 'piqued', 'pored', 'poring', 'pounded', 'pounding',
+  'pulsated', 'pulsating', 'pulsed', 'pulsing', 'purred', 'quaked',
+  'quickened', 'quickening', 'quirked', 'quivered', 'raced', 'raged',
+  'rasped', 'rasping', 'recoiled', 'recoiling', 'reeked', 'reeled', 'reeling',
+  'resonated', 'resonating', 'reveled', 'rippled', 'rippling', 'roared',
+  'rumbled', 'rumbling', 'rummaged', 'savoring', 'scavenged', 'scoffed',
+  'scowled', 'scrawled', 'screeched', 'scribbled', 'scurried', 'sighed',
+  'silhouetted', 'sipped', 'skittered', 'skittering', 'slithered', 'slumped',
+  'smirked', 'smoldered', 'snaked', 'snarled', 'sneered', 'snorted',
+  'softened', 'softening', 'sparkled', 'spasmed', 'spiraled', 'sprawled',
+  'sprawling', 'sprinted', 'sputtered', 'squinted', 'squinting', 'stammered',
+  'stared', 'steeled', 'steeling', 'steepled', 'steepling', 'stilled',
+  'streaked', 'strode', 'stumbled', 'surged', 'swirled', 'swirling',
+  'swiveled', 'teemed', 'teetered', 'thrummed', 'thrumming', 'thudded',
+  'thudding', 'tightened', 'tilted', 'tingled', 'tousled', 'transcended',
+  'transfixed', 'trembled', 'trembling', 'trudged', 'tugged', 'twitched',
+  'wafted', 'wailed', 'wavered', 'wavering', 'welled', 'wheezed', 'whimpered',
+  'whirled', 'whirred', 'whirring', 'widened', 'winced', 'wincing',
+  'writhe', 'writhed', 'yawned', 'yearned', 'yelped', 'yowled',
+  // Sensory / atmospheric adjectives
+  'abuzz', 'acrid', 'agonizing', 'agonizingly', 'ashen', 'audible', 'bated',
+  'bewildered', 'bewilderment', 'billowed', 'billowing', 'blankly', 'blinding',
+  'cacophony', 'calloused', 'cautiously', 'cavernous', 'chillingly',
+  'conspiratorial', 'conspiratorially', 'contorted', 'contorting', 'crimson',
+  'crinkled', 'crinkling', 'crookedly', 'crumbling', 'crumpled', 'crumpling',
+  'dampness', 'dappling', 'deafening', 'desolate', 'dimly', 'dimmed', 'dimness',
+  'disbelief', 'disconcertingly', 'discordant', 'disheveled', 'dismissively',
+  'disorientation', 'disoriented', 'disorienting', 'dizzying', 'dread',
+  'echoes', 'eerie', 'eerily', 'elongating', 'enigmatic', 'ethereal',
+  'exhilaration', 'expanse', 'faded', 'faint', 'faintly', 'festered',
+  'fleeting', 'frantic', 'frayed', 'fraying', 'frowned', 'gaped',
+  'gaze', 'gazed', 'gazes', 'gleamed', 'gleaming', 'glimmer', 'glimmered',
+  'glimmering', 'glint', 'glinted', 'glinting', 'glistened', 'glistening',
+  'gloved', 'gnarled', 'gnawed', 'gnawing', 'gravelly', 'grimly', 'grizzled',
+  'groggily', 'gruff', 'guttered', 'guttural', 'hoarse', 'hollowly',
+  'holstered', 'hues', 'hulking', 'humorless', 'hushed', 'impassive',
+  'imperceptible', 'impossibly', 'inky', 'insistent', 'instinctively',
+  'intently', 'intricate', 'intricately', 'iridescent', 'jagged',
+  'jolt', 'kaleidoscope', 'laced', 'luminescence', 'luminescent',
+  'malevolence', 'malevolent', 'meticulously', 'meticulousness', 'mirroring',
+  'mirthless', 'motes', 'mournful', 'muffled', 'murmur', 'murmured', 'murmurs',
+  'mutely', 'newfound', 'nocked', 'numbly', 'oblivious', 'obsidian',
+  'ominously', 'otherworldly', 'paled', 'palpable', 'pang', 'perpetually',
+  'placating', 'precariously', 'precipice', 'prickle', 'prickled', 'prickling',
+  'protectiveness', 'punctuated', 'quietude', 'radiating', 'rasp', 'raspy',
+  'resonant', 'reverberate', 'reverberated', 'reverberating', 'reverie',
+  'rhythmic', 'rusted', 'rustle', 'rustled', 'rustling', 'scent', 'searing',
+  'seep', 'seeped', 'seeping', 'shadows', 'shambled', 'shambling',
+  'shimmer', 'shimmered', 'shimmering', 'shiver', 'shivered', 'shivers',
+  'shockwaves', 'shrieked', 'shrouded', 'shuddered', 'sickly', 'sidestepped',
+  'skeptically', 'sleek', 'slicked', 'slicking', 'slitted', 'slumbered',
+  'soundlessly', 'spires', 'starlit', 'staticky', 'steadier', 'steadying',
+  'stillness', 'streetlamp', 'streetlamps', 'streetlights', 'suffocating',
+  'sulfurous', 'tapestry', 'tattered', 'tendril', 'tendrils', 'terrifyingly',
+  'threadbare', 'throbbed', 'throngs', 'thrum', 'thud', 'thunderous',
+  'ticked', 'tinged', 'tousling', 'towering', 'tremor', 'trepidation',
+  'twinge', 'twinkled', 'twinkling', 'unassuming', 'unbidden', 'unblinking',
+  'unburdened', 'unclenching', 'uncurled', 'underbrush', 'undercurrent',
+  'unease', 'unfazed', 'unfurling', 'unmarred', 'unmoving', 'unnerving',
+  'unnervingly', 'unravel', 'unraveling', 'unreadable', 'unremarkable',
+  'unseeing', 'unsettling', 'unsettlingly', 'unshaken', 'unshed',
+  'unspoken', 'unspooled', 'unwavering', 'unyielding', 'vastness', 'verdant',
+  'vibrant', 'vibrated', 'warily', 'wariness', 'weariness', 'weathered',
+  'whir', 'whirs', 'whisper', 'whispered', 'whispering', 'whispers',
+  'windowpane', 'windowpanes', 'wizened', 'woodsmoke',
+  // Misc atmospheric nouns
+  'alleyway', 'armrest', 'armrests', 'brushstroke', 'cityscape', 'clatter',
+  'clang', 'clinked', 'clinking', 'coalesced', 'coalescing', 'coursed',
+  'coursing', 'crackle', 'crackled', 'crackling', 'cradled', 'cradling',
+  'creak', 'creaked', 'creaking', 'crescendoed', 'doorframe', 'drumbeat',
+  'emanate', 'emanated', 'encroaching', 'enveloped', 'eons', 'etched',
+  'facepalmed', 'flicker', 'flickered', 'flickering', 'floorboards',
+  'glow', 'glowed', 'locket', 'mirroring', 'nocked', 'outmaneuver',
+  'outmatched', 'peephole', 'pinpricks', 'planchette', 'pixelated',
+  'spiderwebbed', 'warred', 'yellowed',
+]
+
+// AI academic / analytical buzzwords overrepresented in LLM essay and non-fiction prose.
+// Matched case-insensitively. Source: eqbench slop_list.json (bottom section).
+export const SLOP_WORDS_ESSAY: string[] = [
+  'actionable', 'adaptability', 'adaptable', 'adeptly', 'adherence',
+  'algorithmic', 'aligning', 'aligns', 'alleviates', 'amplified', 'amplifies',
+  'amplify', 'amplifying', 'anomie', 'aspirational', 'astutely', 'asymmetries',
+  'actualization', 'absenteeism',
+  'bedrock', 'biometric', 'blending', 'bolstered', 'bolstering', 'bolsters',
+  'borderless', 'bottlenecks', 'bridging', 'broader', 'broadens', 'burgeoning',
+  'burdening', 'burdens',
+  'cementing', 'centricity', 'characterized', 'cohesion', 'collaboratively',
+  'commodification', 'commodified', 'commoditization', 'communicative',
+  'competencies', 'complemented', 'complementing', 'complexities',
+  'conducive', 'confluence', 'congruence', 'constructionism', 'constructivist',
+  'contextualize', 'contextualized', 'contextualizing', 'contextually',
+  'conversely', 'cornerstone', 'correlating', 'correlational', 'counterarguments',
+  'countertransference', 'critiqued', 'critiquing', 'crucially', 'cultivate',
+  'cultivates', 'cultivating', 'curricula',
+  'decentrailizing', 'decentralizing', 'deconstruct', 'deconstructs',
+  'delineate', 'delineates', 'delineating', 'deliverables', 'democratize',
+  'democratized', 'democratizes', 'democratizing', 'demonstrable', 'demonstrably',
+  'deontological', 'determinant', 'determinants', 'differentiator', 'dilemmas',
+  'diminish', 'disengagement', 'disparities', 'disruptions', 'disrupts',
+  'disruptors', 'dissecting', 'dissects', 'distills', 'divergences',
+  'diversification', 'diversifies', 'diversifying', 'dynamism',
+  'elevates', 'elucidates', 'elucidating', 'embed', 'embedding', 'embodies',
+  'embodying', 'empathetic', 'empowers', 'encapsulate', 'encapsulates',
+  'encapsulating', 'encompasses', 'encompass', 'encompassing', 'endures',
+  'enduring', 'engenders', 'enhances', 'enhancing', 'ensuring', 'entails',
+  'equitable', 'equipping', 'equips', 'erode', 'erodes', 'eroding',
+  'ethical', 'ethically', 'evolve', 'evolves', 'evolving', 'evidenced',
+  'evoking', 'exacerbate', 'exacerbated', 'exacerbates', 'exacerbating',
+  'exemplified', 'exemplifies', 'exemplify', 'exemplifying', 'experiential',
+  'exigencies', 'externalities',
+  'facilitating', 'falters', 'foregrounds', 'foregrounding', 'fostered',
+  'fostering', 'fosters', 'foundational', 'fourthly', 'fragmented', 'fraught',
+  'frameworks', 'frictions', 'fueled', 'functionalities',
+  'gamification', 'gamified', 'generalizability', 'generalizable', 'geopolitical',
+  'globalization', 'globalized', 'grapple', 'grappled', 'grapples', 'greenwashing',
+  'groundwork', 'groupthink',
+  'hampers', 'heterogeneity', 'hierarchies', 'highlighting', 'hindering',
+  'hinges', 'holistic', 'holistically', 'homogenization', 'humanized',
+  'humanizes', 'humanizing', 'hurdles',
+  'illuminates', 'illustrating', 'imbue', 'imbues', 'imbuing', 'immense',
+  'impacting', 'impactful', 'impairs', 'impairing', 'imperatives', 'impermanence',
+  'inadequacy', 'incentivize', 'incentivized', 'incentivizes', 'incentivizing',
+  'inclusivity', 'indelible', 'indispensable', 'inequalities', 'inequities',
+  'inefficiencies', 'inferential', 'infuses', 'ingrained', 'inherent',
+  'inherently', 'initiatives', 'innovate', 'insidiously', 'institutionalize',
+  'institutionalizing', 'intergroup', 'internalize', 'internalizing',
+  'interconnected', 'interconnectedness', 'interconnections', 'interdependence',
+  'interdependencies', 'interplay', 'interrelated', 'intersectionality',
+  'intersects', 'intertwined', 'intertwines', 'intertwining', 'intrinsically',
+  'intricacies', 'irrevocably', 'iterative', 'iteratively', 'iterate',
+  'journaling', 'judicious', 'judiciously', 'juxtaposing', 'juxtaposes',
+  'leverages', 'leveraging', 'lifecycle', 'lifeblood', 'linchpin', 'logistical',
+  'maladaptive', 'maleficence', 'manifests', 'marginalization', 'marginalized',
+  'marginalizing', 'masterclass', 'masterfully', 'masterstroke', 'measurable',
+  'meaningfully', 'mentorship', 'meritocratic', 'methodological', 'methodologies',
+  'metrics', 'mitigate', 'mitigating', 'mitigates', 'misalignment', 'misaligned',
+  'misalignments', 'monolithic', 'multifaceted', 'multifactorial', 'multipronged',
+  'multilingualism',
+  'narratives', 'navigate', 'navigated', 'navigates', 'navigating', 'nascent',
+  'necessitate', 'necessitates', 'necessitating', 'neurobiological',
+  'neuroplasticity', 'neurodevelopmental', 'nuanced', 'nuances',
+  'obsolescence', 'oligopoly', 'oligopolistic', 'onboarding', 'operant',
+  'operationalize', 'operationalized', 'optimize', 'optimizing', 'optimizes',
+  'organizational', 'outcomes', 'outpacing', 'overarching', 'overemphasis',
+  'overreliance', 'oversimplification', 'oversimplifies', 'oversimplify',
+  'paradigm', 'paradigms', 'paradoxical', 'paradoxically', 'paramount',
+  'pedagogical', 'performative', 'permeates', 'permeating', 'personalization',
+  'personalized', 'pervasive', 'pervasiveness', 'pivotal', 'pivots', 'pivoted',
+  'poignantly', 'policymakers', 'positing', 'posits', 'predicated',
+  'proactive', 'proactively', 'profound', 'profoundly', 'propels',
+  'psychosocial', 'prioritize', 'prioritized', 'prioritizes', 'prioritizing',
+  'prioritization',
+  'qualitative', 'quantifiable', 'quintessential',
+  'recalibrate', 'recalibration', 'redefines', 'reframe', 'reframes',
+  'reframing', 'reimagining', 'reinforces', 'reinforcing', 'relentless',
+  'reliant', 'resilience', 'resilient', 'reshaping', 'resonate', 'resonates',
+  'resonated', 'responsiveness', 'revolutionized', 'revolutionizing', 'rigorous',
+  'rigor', 'robust', 'rooted',
+  'safeguarding', 'scalable', 'scalability', 'scrutinize', 'scrutinizing',
+  'seamless', 'shaping', 'siloed', 'silos', 'socioeconomic', 'solidify',
+  'solidifies', 'solidifying', 'stakeholder', 'stakeholders', 'starkly',
+  'strategic', 'strategically', 'streamline', 'streamlines', 'streamlining',
+  'sustainability', 'synergies', 'synergistic', 'synergistically', 'systemic',
+  'tailored', 'tangible', 'tapestry', 'technological', 'thirdly', 'thrives',
+  'timelines', 'touchpoints', 'traceability', 'transcends', 'transcending',
+  'transformative', 'transactional', 'triangulation',
+  'unaddressed', 'undeniable', 'undeniably', 'underpin', 'underpins',
+  'underpinned', 'underpinning', 'underpinnings', 'underscore', 'underscored',
+  'underscores', 'underscoring', 'underserved', 'unflinching', 'unmet',
+  'unparalleled', 'upheavals', 'utilizing', 'utilizes',
+  'vulnerabilities', 'wellspring', 'workflows',
 ]
 
 export const SLOP_BIGRAMS: Record<string, number> = {

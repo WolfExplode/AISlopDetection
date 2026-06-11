@@ -39,6 +39,19 @@ function applyDiminishing(weight: number, excessCount: number): number {
   return total
 }
 
+// Geometric decay: each successive instance contributes factor× the previous.
+// Sum of geometric series: ruleWeight × avgInstanceWeight × (1 − factor^count) / (1 − factor).
+// Caps naturally at ruleWeight × avgInstanceWeight / (1 − factor) as count → ∞.
+function applyGeometricDiminishing(
+  ruleWeight: number,
+  avgInstanceWeight: number,
+  count: number,
+  factor: number,
+): number {
+  if (count <= 0) return 0
+  return ruleWeight * avgInstanceWeight * (1 - Math.pow(factor, count)) / (1 - factor)
+}
+
 /**
  * Count violations per rule, treating grouped violations (same ruleId+groupKey)
  * as a single logical incident regardless of how many highlight spans they produce.
@@ -68,10 +81,11 @@ export function computeSlopScore(
 ): SlopScore {
   if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0, breakdown: [] }
 
-  // Sum each rule's instanceWeights into a per-rule total.
+  // Sum each rule's instanceWeights into a per-rule total, and count instances.
   // Grouped violations (same ruleId+groupKey) are one logical incident; their
   // contribution is the average of the individual instanceWeights in the group.
   const weightByRule = new Map<string, number>()
+  const countByRule  = new Map<string, number>()
   const groupData = new Map<string, { ruleId: string; weights: number[] }>()
 
   for (const v of violations) {
@@ -83,6 +97,7 @@ export function computeSlopScore(
       groupData.set(key, entry)
     } else {
       weightByRule.set(v.ruleId, (weightByRule.get(v.ruleId) ?? 0) + (v.instanceWeight ?? 1.0))
+      countByRule.set(v.ruleId, (countByRule.get(v.ruleId) ?? 0) + 1)
     }
   }
 
@@ -90,6 +105,7 @@ export function computeSlopScore(
   for (const { ruleId, weights } of groupData.values()) {
     const avg = weights.reduce((a, b) => a + b, 0) / weights.length
     weightByRule.set(ruleId, (weightByRule.get(ruleId) ?? 0) + avg)
+    countByRule.set(ruleId, (countByRule.get(ruleId) ?? 0) + 1)
   }
 
   let weightedHits = 0
@@ -104,7 +120,11 @@ export function computeSlopScore(
     const excessWeight = Math.max(0, totalWeight - freeCount)
 
     let contribution: number
-    if (rule.scoringMode === 'diminishing') {
+    if (rule.scoringMode === 'diminishing' && rule.diminishingFactor !== undefined) {
+      const count = countByRule.get(ruleId) ?? 0
+      const avgInstanceWeight = count > 0 ? totalWeight / count : 0
+      contribution = applyGeometricDiminishing(ruleWeight, avgInstanceWeight, count, rule.diminishingFactor)
+    } else if (rule.scoringMode === 'diminishing') {
       contribution = applyDiminishing(ruleWeight, excessWeight)
     } else {
       contribution = excessWeight * ruleWeight

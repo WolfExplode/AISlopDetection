@@ -19,7 +19,11 @@ import {
   SLOP_TRIGRAMS,
   SLOP_BIGRAMS,
   FICTION_BODY_LANGUAGE,
-  AI_CHARACTER_NAMES,
+  RULE_SCORING,
+  SLOP_WORDS_CHARACTER_NAMES,
+  SLOP_WORDS_ATMOSPHERIC,
+  SLOP_WORDS_FANTASY_VOCAB,
+  SLOP_WORDS_ESSAY,
 } from '../scoring.config'
 
 export {
@@ -1228,25 +1232,59 @@ export function detectFictionBodyLanguage(text: string): Violation[] {
   return violations
 }
 
-// ── AI default character names ────────────────────────────────────────────────
-// Matches capitalised versions of AI-default fantasy names (Elara, Kael, Theron…).
-// Case-sensitive: only fires on proper-noun usage (first letter uppercase).
+// ── Slop word lists (eqbench Slop Score) ─────────────────────────────────────
+// Three detectors, one per category. Character names are matched case-sensitively
+// (proper-noun usage only). Atmospheric and genre/essay words are case-insensitive.
+// Single regex alternation per category is far faster than N individual regexes.
 
-export function detectAICharacterNames(text: string): Violation[] {
+const _namePattern = new RegExp(
+  `\\b(${SLOP_WORDS_CHARACTER_NAMES.join('|')})\\b`,
+  'g',
+)
+const _atmosphericPattern = new RegExp(
+  `\\b(${SLOP_WORDS_ATMOSPHERIC.join('|')})\\b`,
+  'gi',
+)
+const _fantasyVocabPattern = new RegExp(
+  `\\b(${SLOP_WORDS_FANTASY_VOCAB.join('|')})\\b`,
+  'gi',
+)
+const _essayPattern = new RegExp(
+  `\\b(${SLOP_WORDS_ESSAY.join('|')})\\b`,
+  'gi',
+)
+
+function matchSlopList(
+  text: string,
+  pattern: RegExp,
+  ruleId: string,
+  instanceWeight: number,
+): Violation[] {
   const violations: Violation[] = []
-  for (const name of AI_CHARACTER_NAMES) {
-    // Word-boundary match, case-sensitive, global
-    const re = new RegExp(`\\b${name}\\b`, 'g')
-    let m: RegExpExecArray | null
-    while ((m = re.exec(text)) !== null) {
-      violations.push({
-        ruleId: 'ai-character-name',
-        startIndex: m.index,
-        endIndex: m.index + m[0].length,
-        matchedText: m[0],
-        instanceWeight: 0.75,
-      })
-    }
+  // Reset lastIndex so the module-level regex is safe to reuse across calls.
+  pattern.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = pattern.exec(text)) !== null) {
+    violations.push({
+      ruleId,
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+      instanceWeight,
+    })
   }
   return violations
+}
+
+function slopWeight(ruleId: string, fallback: number): number {
+  return RULE_SCORING[ruleId]?.instanceWeight ?? fallback
+}
+
+export function detectSlopWords(text: string): Violation[] {
+  return [
+    ...matchSlopList(text, _namePattern,        'slop-word-character-name', slopWeight('slop-word-character-name', 0.75)),
+    ...matchSlopList(text, _atmosphericPattern, 'slop-word-atmospheric',    slopWeight('slop-word-atmospheric',    0.5)),
+    ...matchSlopList(text, _fantasyVocabPattern,'slop-word-fantasy-vocab',  slopWeight('slop-word-fantasy-vocab',  0.6)),
+    ...matchSlopList(text, _essayPattern,       'slop-word-essay',          slopWeight('slop-word-essay',          0.6)),
+  ]
 }

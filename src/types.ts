@@ -24,9 +24,11 @@ export interface ViolationRule {
   llmDetectionHint?: string           // detection description used in LLM analysis prompts
   rewriteHint?: string                // human-readable description shown in rewrite debug panel
   llmDirective?: string               // terse imperative sent to the model in rewrite prompts
-  ruleWeight: number   // per-type score multiplier; encodes how exclusively this pattern marks AI output
+  ruleWeight: number          // per-type score multiplier; encodes how exclusively this pattern marks AI output
   scoringMode: ScoringMode
-  freeRate: number     // instances per 1000 words that cost nothing (0 for linear/diminishing)
+  freeRate: number            // instances per 1000 words that cost nothing (0 for linear/diminishing)
+  instanceWeight?: number     // uniform per-hit weight; if absent, violations carry their own weights
+  diminishingFactor?: number  // geometric decay per instance (0–1); if set, overrides the standard diminishing curve
 }
 
 export interface Violation {

@@ -55,7 +55,7 @@ import {
   detectSlopTrigrams,
   detectSlopBigrams,
   detectFictionBodyLanguage,
-  detectAICharacterNames,
+  detectSlopWords,
 } from './wordPatterns'
 
 export function runClientDetectors(text: string): Violation[] {
@@ -106,11 +106,11 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectSlopTrigrams(text),
     ...detectSlopBigrams(text),
     ...detectFictionBodyLanguage(text),
-    ...detectAICharacterNames(text),
     ...detectVerbIntensifierForms(text),
     ...detectTripleConstruction(text),
     ...detectContextualSlop(text),
     ...detectShortHookParagraph(text),
+    ...detectSlopWords(text),
   ]
   const deduped = deduplicateViolations(all)
   return fixArticleContext(suppressUnsafeDeletions(deduped, text), text)
