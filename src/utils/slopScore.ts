@@ -180,7 +180,7 @@ export function computeWritingMetrics(text: string): WritingMetrics | null {
 
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
   const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0)
-  const quotes = (text.match(/["“”]/g) || []).length
+  const quotes = (text.match(/["""]/g) || []).length
 
   const totalSyllables = words.reduce((sum, w) => sum + countSyllables(w), 0)
   const avgSPW = totalSyllables / words.length

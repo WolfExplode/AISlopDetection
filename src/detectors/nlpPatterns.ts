@@ -464,9 +464,9 @@ function splitSentencesWithOffsets(text: string): Array<{ text: string; start: n
   return sentences
 }
 
-const NEG_PIVOT_RE = /\b(isn[’']?t|doesn[’']?t|aren[’']?t|wasn[’']?t|won[’']?t|can[’']?t|don[’']?t|didn[’']?t|is\s+not|does\s+not|are\s+not|was\s+not|do\s+not|will\s+not|cannot|never|no\s+longer)\b/i
+const NEG_PIVOT_RE = /\b(isn['']?t|doesn['']?t|aren['']?t|wasn['']?t|won['']?t|can['']?t|don['']?t|didn['']?t|is\s+not|does\s+not|are\s+not|was\s+not|do\s+not|will\s+not|cannot|never|no\s+longer)\b/i
 const COREFERENT_RE = /^(it|this|that|they|these|those|we)\b/i
-const COPULA_PIVOT_RE = /^(it[’']?s|it\s+is|they[’']?re|that[’']?s|this\s+is)\b/i
+const COPULA_PIVOT_RE = /^(it['']?s|it\s+is|they['']?re|that['']?s|this\s+is)\b/i
 
 /**
  * Detect the negation-pivot pattern using sentence structure rather than regex backreferences.

@@ -897,7 +897,7 @@ function getParagraphBoundingRectFromView(view: EditorView, paraStart: number, p
 function cleanupAfterEdit(text: string): string {
   return text
     .replace(/ +([.,;:!?])/g, '$1')
-    .replace(/ +(["”’\)\]])\s*([.,;:!?])/g, '$1$2')
+    .replace(/ +([""'\)\]])\s*([.,;:!?])/g, '$1$2')
     .replace(/  +/g, ' ')
     .replace(/\n /g, '\n')
 }

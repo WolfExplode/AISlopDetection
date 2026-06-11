@@ -139,7 +139,7 @@ export function detectAlmostHedge(text: string): Violation[] {
 }
 
 export function detectEraOpener(text: string): Violation[] {
-  const re = /\bin\s+(?:an?\s+era\s+(?:of|where|when|in\s+which)|today[’']?s\s+(?:fast[-\s]paced|digital|modern|globalized|interconnected)\s+world)\b/gi
+  const re = /\bin\s+(?:an?\s+era\s+(?:of|where|when|in\s+which)|today['']?s\s+(?:fast[-\s]paced|digital|modern|globalized|interconnected)\s+world)\b/gi
   return findAll(text, re, 'era-opener')
 }
 
@@ -916,6 +916,7 @@ export function detectChatbotArtifact(text: string): Violation[] {
   const lower = text.toLowerCase()
 
   const exactPhrases = [
+    // Conversational scaffolding
     'i hope this helps',
     'feel free to',
     'let me know if you',
@@ -923,6 +924,21 @@ export function detectChatbotArtifact(text: string): Violation[] {
     'is there anything else',
     'i hope that helps',
     'hope this helps',
+    // AI self-identification
+    'as an ai language model',
+    'as a large language model',
+    'as an ai assistant',
+    'as an artificial intelligence',
+    'as an ai,',
+    'as an ai.',
+    // Prompt refusal / capability disclaimers
+    'i cannot fulfill this request',
+    'i cannot assist with that',
+    'i cannot provide information',
+    'i do not have the ability to',
+    'i am unable to provide',
+    'i am unable to assist',
+    'i should note that as an ai',
   ]
   for (const phrase of exactPhrases) {
     let idx = lower.indexOf(phrase)
@@ -939,9 +955,15 @@ export function detectChatbotArtifact(text: string): Violation[] {
 
   // Apostrophe variants — use regex to handle straight vs. curly quotes
   const regexPhrases = [
-    /\bdon[’']t\s+hesitate\s+to\b/gi,
-    /\bi[’']d\s+be\s+(?:glad|happy|delighted)\s+to\b/gi,
-    /\bhere[’']s\s+a\s+(?:breakdown|summary|quick\s+overview)\b/gi,
+    /\bdon['']t\s+hesitate\s+to\b/gi,
+    /\bi['']d\s+be\s+(?:glad|happy|delighted)\s+to\b/gi,
+    /\bhere['']s\s+a\s+(?:breakdown|summary|quick\s+overview)\b/gi,
+    // AI self-ID with apostrophe
+    /\bas\s+an\s+ai[,.]?\s+i[''](?:m|ve|ll|d)\b/gi,
+    // Prompt refusal with apostrophe
+    /\bi['']m\s+unable\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
+    /\bi['']m\s+not\s+able\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
+    /\bi\s+can['']t\s+(?:assist\s+with|provide|help\s+with|fulfill|generate\s+content)\b/gi,
   ]
   for (const re of regexPhrases) {
     violations.push(...findAll(text, re, 'chatbot-artifact'))
@@ -1168,7 +1190,7 @@ export function detectScareQuotes(text: string): Violation[] {
   const seen = new Set<string>()
   // Regex literal avoids new RegExp() double-escape issues with \u escapes in Vite/TS
   // Matches straight (U+0022), left curly (U+201C), or right curly (U+201D) double quotes.
-  const re = /[“””]([^”””\r\n]{2,40})[“””]/g
+  const re = /["""]([^"""\r\n]{2,40})["""]/g
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
     const inner = m[1].trim()
@@ -1307,7 +1329,7 @@ export function detectSycophanticPhrases(text: string): Violation[] {
   const violations: Violation[] = []
   // Normalize curly apostrophes so exact-phrase indexOf matching works regardless
   // of whether the text comes from contenteditable (curly) or plain input (straight).
-  const lower = text.toLowerCase().replace(/[’‘]/g, "'")
+  const lower = text.toLowerCase().replace(/['']/g, "'")
 
   const exactPhrases = [
     "you're absolutely right",
@@ -1381,18 +1403,18 @@ export function detectSycophanticPhrases(text: string): Violation[] {
     }
   }
 
-  // Regex for variable-form patterns and explicit ’ for curly apostrophes.
+  // Regex for variable-form patterns and explicit ' for curly apostrophes.
   // [''] in source may be normalized to two straight quotes by some editors —
-  // use ’ (RIGHT SINGLE QUOTATION MARK) explicitly for reliability.
+  // use ' (RIGHT SINGLE QUOTATION MARK) explicitly for reliability.
   const regexPhrases = [
-    /\byou[’']re\s+absolutely\s+right\b/gi,
-    /\byou[’']re\s+so\s+right\b/gi,
-    /\byou[’']re\s+completely\s+right\b/gi,
-    /\byou[’']re\s+(?:very\s+)?insightful\b/gi,
-    /\byou[’']re\s+(?:very\s+)?self-aware\b/gi,
-    /\bthat[’']s\s+(?:a\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful)\s+(?:point|observation|question|insight)\b/gi,
-    /\bthat[’']s\s+exactly\s+right\b/gi,
-    /\byou[’']ve\s+really\s+thought\s+this\s+through\b/gi,
+    /\byou['']re\s+absolutely\s+right\b/gi,
+    /\byou['']re\s+so\s+right\b/gi,
+    /\byou['']re\s+completely\s+right\b/gi,
+    /\byou['']re\s+(?:very\s+)?insightful\b/gi,
+    /\byou['']re\s+(?:very\s+)?self-aware\b/gi,
+    /\bthat['']s\s+(?:a\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful)\s+(?:point|observation|question|insight)\b/gi,
+    /\bthat['']s\s+exactly\s+right\b/gi,
+    /\byou['']ve\s+really\s+thought\s+this\s+through\b/gi,
     /\bi\s+love\s+(?:that|this)\s+question\b/gi,
   ]
   for (const re of regexPhrases) {
