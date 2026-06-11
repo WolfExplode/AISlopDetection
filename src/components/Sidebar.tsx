@@ -27,10 +27,11 @@ const CATEGORY_LABELS: Record<ViolationCategory, string> = {
   'rhetorical': 'Rhetorical Patterns',
   'structural': 'Structural Tells',
   'framing': 'Framing Tells',
+  'sycophancy': 'Sycophancy',
 }
 
 const CATEGORY_ORDER: ViolationCategory[] = [
-  'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
+  'sycophancy', 'sentence-structure', 'word-choice', 'rhetorical', 'framing', 'structural',
 ]
 
 export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleHover, onViolationBadgeClick, wordCount, mattr, writingMetrics, wordOveruse, wordfreqStatus, hasApiKey, llmStatus, width = 350 }: Props) {

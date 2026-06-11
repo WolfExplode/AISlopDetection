@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph } from '../nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural } from '../nlpPatterns'
 import { runClientDetectors } from '../index'
 import type { Violation } from '../../types'
 
@@ -780,5 +780,55 @@ describe('detectContextSensitiveAdverbs — before action verb (should NOT flag)
   it('does not flag "remarkably" before verb', () => {
     const vs = nlpViolations('The project remarkably succeeded against all odds.')
     expect(vs.some(v => v.matchedText === 'remarkably')).toBe(false)
+  })
+})
+
+// ── detectNegationPivotStructural ─────────────────────────────────────────────
+
+function pivotViolations(text: string) {
+  return detectNegationPivotStructural(text).filter(v => v.ruleId === 'negation-pivot')
+}
+
+describe('detectNegationPivotStructural', () => {
+  it('flags two-sentence pivot: same subject', () => {
+    expect(pivotViolations("It doesn't check whether text was written by an AI. It checks whether text reads like it was.").length).toBeGreaterThan(0)
+    expect(pivotViolations("This doesn't solve the problem. This reframes it.").length).toBeGreaterThan(0)
+  })
+
+  it('flags two-sentence pivot: coreferent pronoun "it"', () => {
+    expect(pivotViolations("AI isn't just a productivity boost. It gets us closer to our mission.").length).toBeGreaterThan(0)
+    expect(pivotViolations("Remote work isn't a perk. It's a competitive advantage.").length).toBeGreaterThan(0)
+  })
+
+  it('flags two-sentence pivot: coreferent pronoun "they"', () => {
+    expect(pivotViolations("The company doesn't chase growth. They build for durability.").length).toBeGreaterThan(0)
+  })
+
+  it('flags two-sentence pivot with prose subject: "This post isn\'t about X. It\'s about Y."', () => {
+    expect(pivotViolations("This post isn't really about Bourdain. It's about what he opened up in me.").length).toBeGreaterThan(0)
+  })
+
+  it('flags single-sentence active-verb pivot: "isn\'t X, it gets Y"', () => {
+    expect(pivotViolations("AI isn't just a productivity boost, it gets us closer to our mission.").length).toBeGreaterThan(0)
+  })
+
+  it('does not flag two sentences with genuinely different subjects', () => {
+    expect(pivotViolations("She doesn't like the proposal. He thinks it has merit.").length).toBe(0)
+  })
+
+  it('does not flag two negated sentences', () => {
+    expect(pivotViolations("It doesn't do X. It doesn't do Y either.").length).toBe(0)
+  })
+
+  it('does not flag across paragraph boundaries', () => {
+    expect(pivotViolations("AI isn't just a productivity boost.\n\nIt gets us closer to our mission.").length).toBe(0)
+  })
+
+  it('does not flag short epistemic "it seems/appears" after comma', () => {
+    expect(pivotViolations("He doesn't know, it seems.").length).toBe(0)
+  })
+
+  it('does not flag when negation is in the second clause, not the first', () => {
+    expect(pivotViolations("Without any instruction or guidance, it becomes clear that he doesn't particularly care about making your arrival comfortable.").length).toBe(0)
   })
 })

@@ -4,6 +4,7 @@ export type ViolationCategory =
   | 'rhetorical'
   | 'structural'
   | 'framing'
+  | 'sycophancy'
 
 export type ScoringMode =
   | 'linear'      // freeRate=0; full weight every instance (near-exclusive AI tells)

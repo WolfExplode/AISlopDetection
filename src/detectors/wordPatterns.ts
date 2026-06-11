@@ -292,14 +292,10 @@ export function detectNegationPivot(text: string): Violation[] {
     })
   }
 
-  // Two-sentence variant: "It doesn't X. It does Y."
-  // Same subject opens both sentences; first negates, second affirms.
-  const NEG = `(?:doesn[\u2019']?t|isn[\u2019']?t|won[\u2019']?t|can[\u2019']?t|don[\u2019']?t|does\\s+not|is\\s+not|was\\s+not|did\\s+not|will\\s+not)`
-  const twoSentenceRe = new RegExp(
-    `(([A-Z][\\w\u2019']*)\\s+${NEG}\\b[^.!?\\n]{5,120}[.!?])[ \\t]+(\\2\\b[^.!?\\n]{5,120}[.!?])`,
-    'g'
-  )
-  while ((m = twoSentenceRe.exec(text)) !== null) {
+  // "isn't [all/just/...] about X, it's about Y" \u2014 reframe construction: negates one framing, substitutes another.
+  // Structural tell: [negation] + content + comma/semicolon + pronoun pivot. No constraint on intervening words.
+  const reframeRe = /\b(isn[\u2019']?t|is not|doesn[\u2019']?t|does not|aren[\u2019']?t|are not|wasn[\u2019']?t|was not)\b[^.!?\n]{5,120}[,;]\s+(?:it[\u2019']?s|it is|they[\u2019']?re|that[\u2019']?s|this is)\b/gi
+  while ((m = reframeRe.exec(text)) !== null) {
     violations.push({
       ruleId: 'negation-pivot',
       startIndex: m.index,
@@ -912,8 +908,6 @@ export function detectChatbotArtifact(text: string): Violation[] {
     'let me know if you',
     'happy to help',
     'is there anything else',
-    'great question',
-    'excellent question',
     'i hope that helps',
     'hope this helps',
   ]
@@ -1287,4 +1281,131 @@ export function detectSlopWords(text: string): Violation[] {
     ...matchSlopList(text, _fantasyVocabPattern,'slop-word-fantasy-vocab',  slopWeight('slop-word-fantasy-vocab',  0.6)),
     ...matchSlopList(text, _essayPattern,       'slop-word-essay',          slopWeight('slop-word-essay',          0.6)),
   ]
+}
+
+// ── Sycophantic phrases ──────────────────────────────────────────────────────
+// Explicit multi-word validation of the reader or their input. These are
+// nearly always AI slop — humans don't open paragraphs by complimenting the
+// question they're answering.
+
+export function detectSycophanticPhrases(text: string): Violation[] {
+  const violations: Violation[] = []
+  // Normalize curly apostrophes so exact-phrase indexOf matching works regardless
+  // of whether the text comes from contenteditable (curly) or plain input (straight).
+  const lower = text.toLowerCase().replace(/[’‘]/g, "'")
+
+  const exactPhrases = [
+    "you're absolutely right",
+    "you are absolutely right",
+    "you're so right",
+    "you are so right",
+    "you're completely right",
+    "you are completely right",
+    "you're 100% right",
+    "you are 100% right",
+    "that's exactly right",
+    "that is exactly right",
+    "that's a great point",
+    "that is a great point",
+    "that's an excellent point",
+    "that is an excellent point",
+    "that's a fantastic point",
+    "that is a fantastic point",
+    "that's a brilliant point",
+    "that is a brilliant point",
+    "that's a valid point",
+    "that is a valid point",
+    "that's an excellent observation",
+    "that is an excellent observation",
+    "that's a great observation",
+    "that is a great observation",
+    "that's an insightful observation",
+    "that is an insightful observation",
+    "that's a thoughtful question",
+    "that is a thoughtful question",
+    "what a great question",
+    "what an excellent question",
+    "what a thoughtful question",
+    "what a wonderful question",
+    "what a fantastic question",
+    "what a great point",
+    "what an excellent point",
+    "what a thoughtful observation",
+    "you raise a great point",
+    "you raise an excellent point",
+    "you raise a valid point",
+    "you make a great point",
+    "you make an excellent point",
+    "you've really thought this through",
+    "you have really thought this through",
+    "you're very insightful",
+    "you are very insightful",
+    "you're very self-aware",
+    "you are very self-aware",
+    "i love that question",
+    "i love this question",
+    "great question",
+    "excellent question",
+    "fascinating question",
+    "wonderful question",
+  ]
+
+  for (const phrase of exactPhrases) {
+    let idx = lower.indexOf(phrase)
+    while (idx !== -1) {
+      violations.push({
+        ruleId: 'sycophantic-phrases',
+        startIndex: idx,
+        endIndex: idx + phrase.length,
+        matchedText: text.slice(idx, idx + phrase.length),
+      })
+      idx = lower.indexOf(phrase, idx + 1)
+    }
+  }
+
+  // Regex for variable-form patterns and explicit ’ for curly apostrophes.
+  // [''] in source may be normalized to two straight quotes by some editors —
+  // use ’ (RIGHT SINGLE QUOTATION MARK) explicitly for reliability.
+  const regexPhrases = [
+    /\byou[’']re\s+absolutely\s+right\b/gi,
+    /\byou[’']re\s+so\s+right\b/gi,
+    /\byou[’']re\s+completely\s+right\b/gi,
+    /\byou[’']re\s+(?:very\s+)?insightful\b/gi,
+    /\byou[’']re\s+(?:very\s+)?self-aware\b/gi,
+    /\bthat[’']s\s+(?:a\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful)\s+(?:point|observation|question|insight)\b/gi,
+    /\bthat[’']s\s+exactly\s+right\b/gi,
+    /\byou[’']ve\s+really\s+thought\s+this\s+through\b/gi,
+    /\bi\s+love\s+(?:that|this)\s+question\b/gi,
+  ]
+  for (const re of regexPhrases) {
+    violations.push(...findAll(text, re, 'sycophantic-phrases'))
+  }
+
+  return violations
+}
+
+// ── Sycophantic word openers ─────────────────────────────────────────────────
+// Single-word empty affirmations at sentence boundaries. "Absolutely," and
+// "Certainly," as openers are near-exclusively AI performing eagerness — not
+// a pattern that appears in human prose.
+
+export function detectSycophanticWords(text: string): Violation[] {
+  // Match single-word affirmations at sentence start (beginning of text or
+  // after sentence-ending punctuation + whitespace). Require a comma or
+  // exclamation to follow — "Absolutely, X" not "absolutely fundamental".
+  const patterns = [
+    /(?:^|(?<=[.!?]\s{1,3}))Absolutely(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Certainly(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Exactly(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Definitely(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Precisely(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Indeed(?=[,!])/gi,
+    /(?:^|(?<=[.!?]\s{1,3}))Of\s+course(?=[,!])/gi,
+  ]
+
+  const violations: Violation[] = []
+  for (const re of patterns) {
+    violations.push(...findAll(text, re, 'sycophantic-words'))
+  }
+  return violations
 }

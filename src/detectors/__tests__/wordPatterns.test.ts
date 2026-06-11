@@ -40,6 +40,8 @@ import {
   detectChatbotArtifact,
   detectSignificancePhrases,
   detectStackedIntensifiers,
+  detectSycophanticPhrases,
+  detectSycophanticWords,
 } from '../wordPatterns'
 
 // Helper: assert at least one violation of the given rule exists
@@ -365,12 +367,6 @@ describe('detectNegationPivot', () => {
   it('flags "isn\'t X—Y" em-dash variant (spec example)', () => {
     assertFires(detectNegationPivot("This isn\u2019t about technology\u2014it\u2019s about trust."), 'negation-pivot')
   })
-  it('flags two-sentence variant: "It doesn\'t X. It does Y."', () => {
-    assertFires(detectNegationPivot("It doesn't check whether text was written by an AI. It checks whether text reads like it was."), 'negation-pivot')
-  })
-  it('flags two-sentence variant with different subject', () => {
-    assertFires(detectNegationPivot("This doesn't solve the problem. This reframes it."), 'negation-pivot')
-  })
   it('does not flag "but" without a preceding negation', () => {
     assertSilent(detectNegationPivot('The results were good, but not perfect.'), 'negation-pivot')
   })
@@ -395,6 +391,13 @@ describe('detectNegationPivot', () => {
   it('flags semicolon negation pivot', () => {
     assertFires(detectNegationPivot('These are not isolated anecdotes; they are economy-wide patterns.'), 'negation-pivot')
     assertFires(detectNegationPivot('This is not a coincidence; it is a pattern.'), 'negation-pivot')
+  })
+  it('flags "isn\'t [qualifier] about X, it\'s about Y" reframe construction', () => {
+    assertFires(detectNegationPivot("Striking the perfect pose in photography isn't just about looking good, It's about telling a story."), 'negation-pivot')
+    assertFires(detectNegationPivot("isn't all about looking good, It's about telling a story."), 'negation-pivot')
+    assertFires(detectNegationPivot("This isn't just about efficiency, it's about trust."), 'negation-pivot')
+    assertFires(detectNegationPivot("Leadership isn't merely about authority, it's about service."), 'negation-pivot')
+    assertFires(detectNegationPivot("Success isn't only about talent, it's about consistency."), 'negation-pivot')
   })
 })
 
@@ -920,11 +923,11 @@ describe('detectChatbotArtifact', () => {
   it('flags "let me know if you"', () => {
     assertFires(detectChatbotArtifact('Let me know if you have any questions.'), 'chatbot-artifact')
   })
-  it('flags "great question"', () => {
-    assertFires(detectChatbotArtifact('Great question! The answer is nuanced.'), 'chatbot-artifact')
+  it('does not flag "great question" (moved to sycophantic-phrases)', () => {
+    expect(detectChatbotArtifact('Great question! The answer is nuanced.').some(v => v.ruleId === 'chatbot-artifact')).toBe(false)
   })
-  it('flags "excellent question"', () => {
-    assertFires(detectChatbotArtifact('Excellent question — let me explain.'), 'chatbot-artifact')
+  it('does not flag "excellent question" (moved to sycophantic-phrases)', () => {
+    expect(detectChatbotArtifact('Excellent question — let me explain.').some(v => v.ruleId === 'chatbot-artifact')).toBe(false)
   })
   it('flags "happy to help"', () => {
     assertFires(detectChatbotArtifact("I'm happy to help with that."), 'chatbot-artifact')
@@ -1011,5 +1014,63 @@ describe("detectStackedIntensifiers", () => {
   it("fires via runClientDetectors", () => {
     const text = "What a remarkable piece of work. The insights are truly profound and compelling. This is an exceptional contribution to the field."
     assertFires(runClientDetectors(text), RULE)
+  })
+})
+
+// ── Sycophantic Phrases ───────────────────────────────────────────────────────
+
+describe('detectSycophanticPhrases', () => {
+  it('flags "great question"', () => {
+    assertFires(detectSycophanticPhrases('Great question! The answer is nuanced.'), 'sycophantic-phrases')
+  })
+  it('flags "excellent question"', () => {
+    assertFires(detectSycophanticPhrases('Excellent question — let me explain.'), 'sycophantic-phrases')
+  })
+  it('flags "you\'re absolutely right" (straight quote)', () => {
+    assertFires(detectSycophanticPhrases("You're absolutely right about that."), 'sycophantic-phrases')
+  })
+  it('flags "you\'re absolutely right" (curly quote)', () => {
+    assertFires(detectSycophanticPhrases('You’re absolutely right about that.'), 'sycophantic-phrases')
+  })
+  it('flags "that\'s a great point"', () => {
+    assertFires(detectSycophanticPhrases("That's a great point worth exploring."), 'sycophantic-phrases')
+  })
+  it('flags "what a thoughtful question"', () => {
+    assertFires(detectSycophanticPhrases('What a thoughtful question to raise.'), 'sycophantic-phrases')
+  })
+  it('flags "you raise a great point"', () => {
+    assertFires(detectSycophanticPhrases('You raise a great point here.'), 'sycophantic-phrases')
+  })
+  it('does not flag ordinary prose', () => {
+    const text = 'The question of climate policy requires careful analysis.'
+    expect(detectSycophanticPhrases(text).some(v => v.ruleId === 'sycophantic-phrases')).toBe(false)
+  })
+  it('fires via runClientDetectors', () => {
+    assertFires(runClientDetectors("Great question! Let me explain the answer."), 'sycophantic-phrases')
+  })
+})
+
+// ── Sycophantic Word Openers ──────────────────────────────────────────────────
+
+describe('detectSycophanticWords', () => {
+  it('flags "Absolutely," at sentence start', () => {
+    assertFires(detectSycophanticWords('Absolutely, that is the correct approach.'), 'sycophantic-words')
+  })
+  it('flags "Certainly," at sentence start', () => {
+    assertFires(detectSycophanticWords('Certainly, I can help with that.'), 'sycophantic-words')
+  })
+  it('flags "Exactly," after sentence boundary', () => {
+    assertFires(detectSycophanticWords('Good point. Exactly, that is how it works.'), 'sycophantic-words')
+  })
+  it('flags "Of course," at sentence start', () => {
+    assertFires(detectSycophanticWords('Of course, there are multiple ways to approach this.'), 'sycophantic-words')
+  })
+  it('does not flag "absolutely" mid-sentence', () => {
+    const text = 'This is absolutely the wrong approach to take.'
+    expect(detectSycophanticWords(text).some(v => v.ruleId === 'sycophantic-words')).toBe(false)
+  })
+  it('does not flag "certainly" without following comma or exclamation', () => {
+    const text = 'She was certainly aware of the risks involved.'
+    expect(detectSycophanticWords(text).some(v => v.ruleId === 'sycophantic-words')).toBe(false)
   })
 })

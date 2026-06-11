@@ -39,7 +39,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'knowledge-cutoff-disclaimer': { ruleWeight: 5.0, scoringMode: 'linear',   freeRate: 0 },
 
   // ── Sentence structure ──────────────────────────────────────────────────────
-  'negation-pivot':           { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'negation-pivot':           { ruleWeight: 3.5, scoringMode: 'linear',      freeRate: 0 },
   'negation-countdown':       { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'serves-as':                { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
   'superficial-analysis':     { ruleWeight: 3.0, scoringMode: 'diminishing', freeRate: 0 },
@@ -57,8 +57,12 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'em-dash-overuse':          { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.0 },
   'triple-construction':      { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.5 },
 
-  // ── Rhetorical ──────────────────────────────────────────────────────────────
+  // ── Sycophancy ──────────────────────────────────────────────────────────────
+  'sycophantic-phrases':      { ruleWeight: 3.8, scoringMode: 'linear',      freeRate: 0 },
+  'sycophantic-words':        { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'sycophantic-frame':        { ruleWeight: 3.5, scoringMode: 'linear',      freeRate: 0 },
+
+  // ── Rhetorical ──────────────────────────────────────────────────────────────
   'empathy-performance':      { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'false-vulnerability':      { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
   'throat-clearing':          { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },

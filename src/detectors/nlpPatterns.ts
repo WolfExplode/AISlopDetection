@@ -447,6 +447,135 @@ export function detectContextualSlop(text: string): Violation[] {
   return violations
 }
 
+// ── Negation pivot (structural) ───────────────────────────────────────────────
+
+function splitSentencesWithOffsets(text: string): Array<{ text: string; start: number }> {
+  const sentences: Array<{ text: string; start: number }> = []
+  const splitRe = /(?<=[.!?])\s+(?=[A-Z"'])/g
+  let prev = 0
+  let m: RegExpExecArray | null
+  while ((m = splitRe.exec(text)) !== null) {
+    const sentText = text.slice(prev, m.index)
+    if (sentText.trim()) sentences.push({ text: sentText, start: prev })
+    prev = m.index + m[0].length
+  }
+  const last = text.slice(prev)
+  if (last.trim()) sentences.push({ text: last, start: prev })
+  return sentences
+}
+
+const NEG_PIVOT_RE = /\b(isn[’']?t|doesn[’']?t|aren[’']?t|wasn[’']?t|won[’']?t|can[’']?t|don[’']?t|didn[’']?t|is\s+not|does\s+not|are\s+not|was\s+not|do\s+not|will\s+not|cannot|never|no\s+longer)\b/i
+const COREFERENT_RE = /^(it|this|that|they|these|those|we)\b/i
+const COPULA_PIVOT_RE = /^(it[’']?s|it\s+is|they[’']?re|that[’']?s|this\s+is)\b/i
+
+/**
+ * Detect the negation-pivot pattern using sentence structure rather than regex backreferences.
+ *
+ * Two cases:
+ *   1. Two-sentence pivot: S1 contains a genuine negation; S2 opens with a coreferent pronoun
+ *      (it, this, that, they, these, those, we) or the same first word as S1.
+ *      e.g. "AI isn't just a productivity boost. It gets us closer to our mission."
+ *           "This post isn't really about Bourdain. It's about what he opened up in me."
+ *           "This doesn't solve the problem. This reframes it."
+ *
+ *   2. Single-sentence active-verb pivot: negation in the first clause, comma, then coreferent
+ *      pronoun + active (non-copula) verb in the second clause.
+ *      e.g. "AI isn't just a productivity boost, it gets us closer to our mission."
+ *      (Copula forms — "it's", "it is", "they're" — are handled by reframeRe in wordPatterns.ts.)
+ *
+ * Compromise is used to confirm genuine negation (#Negative tag) and verb presence after the
+ * pivot, filtering false positives from the regex pre-check.
+ */
+export function detectNegationPivotStructural(text: string): Violation[] {
+  if (!NEG_PIVOT_RE.test(text)) return []
+
+  const violations: Violation[] = []
+  const parts = text.split(/(\n\n+)/)
+  let docPos = 0
+
+  for (let pi = 0; pi < parts.length; pi++) {
+    const part = parts[pi]
+    if (pi % 2 === 1) { docPos += part.length; continue }
+
+    const paraOffset = docPos
+    docPos += part.length
+
+    if (!NEG_PIVOT_RE.test(part)) continue
+
+    const sentences = splitSentencesWithOffsets(part)
+
+    // ── Two-sentence pivot ────────────────────────────────────────────────────
+    for (let i = 0; i < sentences.length - 1; i++) {
+      const s1 = sentences[i]
+      const s2 = sentences[i + 1]
+
+      if (!NEG_PIVOT_RE.test(s1.text)) continue
+      if (!nlp(s1.text).has('#Negative')) continue  // confirm genuine negation, not idiomatic "not bad"
+
+      // S2 must not itself be negated — "It doesn't X. It doesn't Y." is not a pivot
+      if (NEG_PIVOT_RE.test(s2.text) && nlp(s2.text).has('#Negative')) continue
+
+      // S1 must be substantive (filters "Never." or "No." as opening sentences)
+      if (s1.text.trim().split(/\s+/).length < 3) continue
+
+      const s2trimmed = s2.text.trimStart()
+      const s1firstWord = s1.text.trimStart().match(/^\S+/)?.[0] ?? ''
+
+      const startsWithCoreferent = COREFERENT_RE.test(s2trimmed)
+      const startsWithSameSubject = s1firstWord.length > 1 &&
+        s2trimmed.toLowerCase().startsWith(s1firstWord.toLowerCase())
+
+      if (!startsWithCoreferent && !startsWithSameSubject) continue
+
+      const start = paraOffset + s1.start
+      const end = paraOffset + s2.start + s2.text.length
+      violations.push({
+        ruleId: 'negation-pivot',
+        startIndex: start,
+        endIndex: end,
+        matchedText: text.slice(start, end),
+      })
+    }
+
+    // ── Single-sentence active-verb pivot ─────────────────────────────────────
+    // Copula forms ("it's", "it is", "they're", "that's", "this is") are handled
+    // by the reframeRe regex in wordPatterns.ts. This catches active verbs only.
+    for (const s of sentences) {
+      const commaIdx = s.text.indexOf(',')
+      if (commaIdx === -1) continue
+
+      // Negation must be in the FIRST clause (before the comma), not the second.
+      // "Without any instruction, it becomes clear he doesn't care" — negation is
+      // after the comma, so this is not a pivot. Only flag when the negated claim
+      // is what's being reframed: "AI isn't just X, it does Y."
+      const beforeComma = s.text.slice(0, commaIdx)
+      if (!NEG_PIVOT_RE.test(beforeComma)) continue
+      if (!nlp(beforeComma).has('#Negative')) continue
+
+      const afterComma = s.text.slice(commaIdx + 1).trimStart()
+      if (!COREFERENT_RE.test(afterComma)) continue
+      if (COPULA_PIVOT_RE.test(afterComma)) continue  // reframeRe handles these
+
+      // Require 4+ words after comma (filters epistemic "it seems", "it appears")
+      if (afterComma.trim().split(/\s+/).length < 4) continue
+
+      // Confirm a verb is present after the pronoun
+      if (!nlp('x ' + afterComma).has('#Verb')) continue
+
+      const start = paraOffset + s.start
+      const end = paraOffset + s.start + s.text.length
+      violations.push({
+        ruleId: 'negation-pivot',
+        startIndex: start,
+        endIndex: end,
+        matchedText: text.slice(start, end),
+      })
+    }
+  }
+
+  return violations
+}
+
 // ── Short-hook paragraph ──────────────────────────────────────────────────────
 
 /**
