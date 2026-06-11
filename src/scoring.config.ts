@@ -99,6 +99,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'listicle-instinct':        { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'unicode-decoration':       { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'dramatic-fragment':        { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'paired-negation':          { ruleWeight: 2.2, scoringMode: 'threshold',   freeRate: 0.5 },
 }
 
 // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)

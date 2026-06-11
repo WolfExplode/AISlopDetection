@@ -853,7 +853,13 @@ export function detectDramaticFragment(text: string): Violation[] {
       })
     }
   }
+  // "Just... there." — ellipsis used as dramatic pause between short fragments inline
+  violations.push(...findAll(text, /\b\w{1,12}(?:\.{3}|…)\s+\w{1,12}(?:\s+\w{1,10})?[.!?]/g, 'dramatic-fragment'))
   return violations
+}
+
+export function detectPairedNegation(text: string): Violation[] {
+  return findAll(text, /\bnot \w+,\s*not \w+/gi, 'paired-negation')
 }
 
 export function detectSuperficialAnalysis(text: string): Violation[] {

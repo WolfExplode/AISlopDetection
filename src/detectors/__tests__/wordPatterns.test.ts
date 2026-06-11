@@ -34,6 +34,7 @@ import {
   detectDespiteChallenges,
   detectConceptLabel,
   detectDramaticFragment,
+  detectPairedNegation,
   detectSuperficialAnalysis,
   detectFalseRange,
   detectExemplarCliche,
@@ -835,6 +836,39 @@ describe('detectDramaticFragment', () => {
   it('does NOT flag a 5-word paragraph', () => {
     const text = 'This is the first paragraph with plenty of words.\n\nThis paragraph also has five words here.\n\nThis is the third paragraph with plenty of words too.'
     assertSilent(detectDramaticFragment(text), 'dramatic-fragment')
+  })
+  it('flags inline ellipsis dramatic pause: "Just... there."', () => {
+    const text = 'He wore his demons like a leather jacket: not flaunted, not hidden. Just... there.'
+    assertFires(detectDramaticFragment(text), 'dramatic-fragment')
+  })
+  it('flags inline ellipsis dramatic pause: "Still... waiting."', () => {
+    const text = 'The room was empty. Still... waiting.'
+    assertFires(detectDramaticFragment(text), 'dramatic-fragment')
+  })
+  it('flags inline ellipsis dramatic pause with Unicode ellipsis', () => {
+    const text = 'She said nothing. Gone… forever.'
+    assertFires(detectDramaticFragment(text), 'dramatic-fragment')
+  })
+  it('flags two-word resolution after ellipsis: "Until... right now."', () => {
+    const text = 'He had never noticed it. Until... right now.'
+    assertFires(detectDramaticFragment(text), 'dramatic-fragment')
+  })
+})
+
+// ── Paired Negation ────────────────────────────────────────────────────────
+
+describe('detectPairedNegation', () => {
+  it('flags "not flaunted, not hidden"', () => {
+    assertFires(detectPairedNegation('He wore his demons like a leather jacket: not flaunted, not hidden. Just... there.'), 'paired-negation')
+  })
+  it('flags "not weakness, not strength"', () => {
+    assertFires(detectPairedNegation('It was not weakness, not strength. Simply human.'), 'paired-negation')
+  })
+  it('flags "not loud, not quiet"', () => {
+    assertFires(detectPairedNegation('The room was not loud, not quiet.'), 'paired-negation')
+  })
+  it('does NOT flag a single negation', () => {
+    assertSilent(detectPairedNegation('He was not angry about it.'), 'paired-negation')
   })
 })
 

@@ -536,6 +536,20 @@ export const RULES: ViolationRule[] = [
     llmDirective: 'Do not use a one-to-four-word standalone paragraph for dramatic emphasis — absorb it into the surrounding text.',
     ...RULE_SCORING['dramatic-fragment'],
   },
+  {
+    id: 'paired-negation',
+    name: 'Paired Negation',
+    category: 'sentence-structure',
+    description: '"not X, not Y" — defines something by rejecting two extremes, performing nuance without delivering it.',
+    tip: 'Say what the thing actually is instead of what it isn\'t.',
+    canRemove: false,
+    color: '#fb923c',
+    bgColor: 'rgba(251,146,60,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Replace "not X, not Y" with a direct description of what it actually is.',
+    llmDirective: 'Do not use "not X, not Y" paired negation — say directly what the thing is.',
+    ...RULE_SCORING['paired-negation'],
+  },
 
   // ── Framing (new) ────────────────────────────────────────────────────────
   {
