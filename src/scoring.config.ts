@@ -56,7 +56,8 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'false-range':              { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
   'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.0 },
   'em-dash-overuse':          { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.0 },
-  'triple-construction':      { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.5 },
+  'triple-fragment':          { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 0.5 },
+  'triple-construction':      { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 1.5 },
 
   // ── Sycophancy ──────────────────────────────────────────────────────────────
   'sycophantic-phrases':      { ruleWeight: 3.8, scoringMode: 'linear',      freeRate: 0 },

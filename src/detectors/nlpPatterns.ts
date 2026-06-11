@@ -758,3 +758,54 @@ export function detectTripleConstruction(text: string): Violation[] {
   }
   return violations
 }
+
+// ── Triple fragment ───────────────────────────────────────────────────────────
+
+/**
+ * Detect the anaphoric tricolon: exactly 3 consecutive short sentences (≤5 words)
+ * within a paragraph that all start with the same word.
+ * e.g. "Too raw. Too weird. Too true." / "No shortcuts. No compromise. No excuses."
+ */
+export function detectTripleFragment(text: string): Violation[] {
+  const violations: Violation[] = []
+  const parts = text.split(/(\n\n+)/)
+  let docPos = 0
+
+  for (let pi = 0; pi < parts.length; pi++) {
+    const part = parts[pi]
+    if (pi % 2 === 1) { docPos += part.length; continue }
+
+    const paraOffset = docPos
+    docPos += part.length
+
+    const sentences = splitSentencesWithOffsets(part)
+    if (sentences.length < 3) continue
+
+    for (let i = 0; i <= sentences.length - 3; i++) {
+      const trio = [sentences[i], sentences[i + 1], sentences[i + 2]]
+
+      // All three must be short
+      if (trio.some(s => s.text.trim().split(/\s+/).filter(Boolean).length > 5)) continue
+
+      // Extract first alphabetic word from each sentence
+      const firstWord = (s: string) => /^([A-Za-z]+)/.exec(s.trimStart())?.[1]?.toLowerCase()
+      const leads = trio.map(s => firstWord(s.text))
+      if (!leads[0] || leads[0].length < 2) continue
+
+      // All three must share the same first word
+      if (leads[1] !== leads[0] || leads[2] !== leads[0]) continue
+
+      const start = paraOffset + trio[0].start
+      const end = paraOffset + trio[2].start + trio[2].text.length
+      violations.push({
+        ruleId: 'triple-fragment',
+        startIndex: start,
+        endIndex: end,
+        matchedText: text.slice(start, end),
+      })
+      i += 2  // skip consumed sentences
+    }
+  }
+
+  return violations
+}

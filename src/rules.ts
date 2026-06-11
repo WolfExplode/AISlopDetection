@@ -733,6 +733,20 @@ export const RULES: ViolationRule[] = [
 
   // ── LLM-required semantic detections ─────────────────────────────────────
   {
+    id: 'triple-fragment',
+    name: 'Triple Fragment',
+    category: 'sentence-structure',
+    description: 'Three consecutive short sentences that all start with the same word — the anaphoric tricolon. "Too raw. Too weird. Too true." AI deploys this pattern compulsively for rhetorical punch.',
+    tip: 'Merge into one sentence, or cut the third hit — the pattern loses its power the moment you notice it.',
+    canRemove: false,
+    color: '#bef264',
+    bgColor: 'rgba(190,242,100,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Collapse the three short parallel sentences into one, or cut to two and finish the thought differently.',
+    llmDirective: 'Do not write three consecutive short sentences that all start with the same word — the anaphoric tricolon ("Too raw. Too weird. Too true.") is a stock AI rhetorical device.',
+    ...RULE_SCORING['triple-fragment'],
+  },
+  {
     id: 'triple-construction',
     name: 'Triple Construction',
     category: 'sentence-structure',

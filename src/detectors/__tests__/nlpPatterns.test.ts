@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation } from '../nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectTripleFragment, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation } from '../nlpPatterns'
 import { runClientDetectors } from '../index'
 import type { Violation } from '../../types'
 
@@ -563,6 +563,39 @@ describe('detectTripleConstruction', () => {
     // All three items are proper nouns — no appositive suppression should fire
     const vs = detectTripleConstruction('The event featured Apple, Google, and Microsoft as sponsors.')
     expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(true)
+  })
+})
+
+// ── Triple fragment ───────────────────────────────────────────────────────────
+
+describe('detectTripleFragment', () => {
+  it('flags the classic "Too X. Too Y. Too Z." anaphoric tricolon', () => {
+    const vs = detectTripleFragment('Too raw. Too weird. Too true.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(true)
+  })
+  it('flags "No X. No Y. No Z." pattern', () => {
+    const vs = detectTripleFragment('No compromise. No shortcuts. No excuses.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(true)
+  })
+  it('flags "It X. It Y. It Z." pattern', () => {
+    const vs = detectTripleFragment('It works. It scales. It sells.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(true)
+  })
+  it('does not flag three short sentences with different first words', () => {
+    const vs = detectTripleFragment('Bold. Brave. Unstoppable.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(false)
+  })
+  it('does not flag two matching sentences (need exactly 3)', () => {
+    const vs = detectTripleFragment('Too raw. Too weird.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(false)
+  })
+  it('does not flag when one sentence exceeds the word limit', () => {
+    const vs = detectTripleFragment('Too raw. Too weird to be true in any meaningful sense. Too true.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(false)
+  })
+  it('does not match across paragraph boundaries', () => {
+    const vs = detectTripleFragment('Too raw. Too weird.\n\nToo true.')
+    expect(vs.some(v => v.ruleId === 'triple-fragment')).toBe(false)
   })
 })
 
