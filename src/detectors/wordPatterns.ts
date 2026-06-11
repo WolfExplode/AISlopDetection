@@ -1257,7 +1257,7 @@ const _fantasyVocabPattern = new RegExp(
   'gi',
 )
 const _essayPattern = new RegExp(
-  `\\b(${SLOP_WORDS_ESSAY.join('|')})\\b`,
+  `\\b(${Object.keys(SLOP_WORDS_ESSAY).join('|')})\\b`,
   'gi',
 )
 
@@ -1266,6 +1266,7 @@ function matchSlopList(
   pattern: RegExp,
   ruleId: string,
   instanceWeight: number,
+  weightMap?: Record<string, number>,
 ): Violation[] {
   const violations: Violation[] = []
   // Reset lastIndex so the module-level regex is safe to reuse across calls.
@@ -1277,7 +1278,8 @@ function matchSlopList(
       startIndex: m.index,
       endIndex: m.index + m[0].length,
       matchedText: m[0],
-      instanceWeight,
+      // Per-word weight when the list is weighted; otherwise the uniform fallback.
+      instanceWeight: weightMap ? (weightMap[m[0].toLowerCase()] ?? instanceWeight) : instanceWeight,
     })
   }
   return violations
@@ -1292,7 +1294,7 @@ export function detectSlopWords(text: string): Violation[] {
     ...matchSlopList(text, _namePattern,        'slop-word-character-name', slopWeight('slop-word-character-name', 0.75)),
     ...matchSlopList(text, _atmosphericPattern, 'slop-word-atmospheric',    slopWeight('slop-word-atmospheric',    0.5)),
     ...matchSlopList(text, _fantasyVocabPattern,'slop-word-fantasy-vocab',  slopWeight('slop-word-fantasy-vocab',  0.6)),
-    ...matchSlopList(text, _essayPattern,       'slop-word-essay',          slopWeight('slop-word-essay',          0.6)),
+    ...matchSlopList(text, _essayPattern,       'slop-word-essay',          slopWeight('slop-word-essay',          0.6), SLOP_WORDS_ESSAY),
   ]
 }
 
@@ -1361,6 +1363,9 @@ export function detectSycophanticPhrases(text: string): Violation[] {
     "excellent question",
     "fascinating question",
     "wonderful question",
+    "hats off to",
+    "tip my hat to",
+    "tip my hat",
   ]
 
   for (const phrase of exactPhrases) {

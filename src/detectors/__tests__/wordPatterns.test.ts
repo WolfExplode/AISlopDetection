@@ -1106,6 +1106,12 @@ describe('detectSycophanticPhrases', () => {
   it('fires via runClientDetectors', () => {
     assertFires(runClientDetectors("Great question! Let me explain the answer."), 'sycophantic-phrases')
   })
+  it('flags "hats off to"', () => {
+    assertFires(detectSycophanticPhrases('Hats off to the team for pulling this off.'), 'sycophantic-phrases')
+  })
+  it('flags "tip my hat"', () => {
+    assertFires(detectSycophanticPhrases('I tip my hat to anyone who manages that.'), 'sycophantic-phrases')
+  })
 })
 
 // ── Sycophantic Word Openers ──────────────────────────────────────────────────
