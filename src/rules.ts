@@ -551,6 +551,21 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['paired-negation'],
   },
 
+  {
+    id: 'reality-claim',
+    name: 'Reality Claim',
+    category: 'rhetorical',
+    description: '"The gap is real," "The threat cannot be ignored" — asserting that something exists or matters without demonstrating it.',
+    tip: 'If it\'s real, show it. Cut the assertion and let the evidence speak.',
+    canRemove: true,
+    color: '#14b8a6',
+    bgColor: 'rgba(20,184,166,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Remove the bare assertion and replace it with a concrete example or evidence.',
+    llmDirective: 'Do not assert that something is real, undeniable, or significant — demonstrate it instead.',
+    ...RULE_SCORING['reality-claim'],
+  },
+
   // ── Framing (new) ────────────────────────────────────────────────────────
   {
     id: 'invented-concept-label',

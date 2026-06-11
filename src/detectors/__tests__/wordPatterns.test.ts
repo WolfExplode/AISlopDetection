@@ -35,6 +35,7 @@ import {
   detectConceptLabel,
   detectDramaticFragment,
   detectPairedNegation,
+  detectRealityClaim,
   detectSuperficialAnalysis,
   detectFalseRange,
   detectExemplarCliche,
@@ -869,6 +870,29 @@ describe('detectPairedNegation', () => {
   })
   it('does NOT flag a single negation', () => {
     assertSilent(detectPairedNegation('He was not angry about it.'), 'paired-negation')
+  })
+})
+
+// ── Reality Claim ──────────────────────────────────────────────────────────
+
+describe('detectRealityClaim', () => {
+  it('flags "The gap is real"', () => {
+    assertFires(detectRealityClaim('The gap is real.'), 'reality-claim')
+  })
+  it('flags "The threat cannot be ignored"', () => {
+    assertFires(detectRealityClaim('The threat cannot be ignored.'), 'reality-claim')
+  })
+  it('flags "The struggle is very real"', () => {
+    assertFires(detectRealityClaim('The struggle is very real.'), 'reality-claim')
+  })
+  it('flags "This matters"', () => {
+    assertFires(detectRealityClaim('This matters.'), 'reality-claim')
+  })
+  it('flags "This problem cannot be overstated"', () => {
+    assertFires(detectRealityClaim('This problem cannot be overstated.'), 'reality-claim')
+  })
+  it('does NOT flag "The real problem is funding"', () => {
+    assertSilent(detectRealityClaim('The real problem is funding.'), 'reality-claim')
   })
 })
 

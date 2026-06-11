@@ -101,6 +101,13 @@ API calls go directly from your browser to the provider you choose (Anthropic, O
 | Chatbot Artifact          | `I hope this helps`, `feel free to`, `great question`, `don't hesitate to ask` — conversational scaffolding in prose  |
 
 
+### Limitations with the client side detection.
+
+The sentence "He talked about life like it was a five-course meal served in a dive bar." is slop. Good (human) writing doesn't spell things out. It lets the reader make their own connections. This is beyond the scope of this slop detection algorithm. There are just some kinds of slop we can't detect. 
+
+AI loves to [constantly clarify meanings](https://youtu.be/9Ch4a6ffPZY?t=506) 
+
+
 ### Semantic — fast pass (Claude Haiku or GPT-4.1 mini)
 
 Throat-Clearing Opener · Sycophantic Frame · Balanced Take · Unnecessary Elaboration · Empathy Performance · Pivot Paragraph · Grandiose Stakes · Historical Analogy Stack · False Vulnerability

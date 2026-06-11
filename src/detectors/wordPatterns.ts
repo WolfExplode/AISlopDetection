@@ -862,6 +862,13 @@ export function detectPairedNegation(text: string): Violation[] {
   return findAll(text, /\bnot \w+,\s*not \w+/gi, 'paired-negation')
 }
 
+export function detectRealityClaim(text: string): Violation[] {
+  // "The gap is real", "This threat cannot be ignored", "That matters"
+  return findAll(text,
+    /\b(?:the\s+\w+|(?:this|that)(?:\s+\w+)?)\s+(?:is\s+(?:very\s+)?(?:real|undeniable|significant)|cannot\s+be\s+(?:ignored|overstated|denied|understated)|matters)\b/gi,
+    'reality-claim')
+}
+
 export function detectSuperficialAnalysis(text: string): Violation[] {
   const re = /,\s+(highlighting|underscoring|showcasing|reflecting|cementing|embodying|encapsulating)\s+(its|the|their|this)\s+(importance|role|significance|legacy|power|spirit|nature|value)\b/gi
   return findAll(text, re, 'superficial-analysis')
