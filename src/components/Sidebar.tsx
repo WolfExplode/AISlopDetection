@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Violation, ViolationCategory } from '../types'
 import { RULES } from '../rules'
-import { computeSlopScore, countViolationsByRule, RATING_COLOR, CATEGORY_WEIGHT, type MattrResult, type WritingMetrics, type OverusedWord } from '../utils/slopScore'
+import { computeSlopScore, countViolationsByRule, RATING_COLOR, type MattrResult, type WritingMetrics, type OverusedWord } from '../utils/slopScore'
 import type { WordfreqStatus } from '../hooks/useWordfreq'
 import { useTheme } from '../theme'
 
@@ -129,13 +129,13 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto auto auto auto auto auto', gap: '1px 3px', alignItems: 'baseline', marginBottom: '6px' }}>
                       {/* Header — operators columns left blank */}
                       <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest }}>Rule</span>
-                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Total violation weight for this rule (sum of all hit weights)">w</span>
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Each instance of a violation has a weight, this weight is the sum of all instances">w</span>
                       <span />
                       <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Weighted instances allowed free at this word count (wordCount ÷ 1000 × freeRate)">free</span>
                       <span />
                       <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Excess weight after subtracting free allowance (w − free)">exc</span>
                       <span />
-                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Category weight — float multiplier applied to excess. * means diminishing returns were applied after 3 excess instances.">c.wt</span>
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="Rule weight — float multiplier applied to excess. * means diminishing returns were applied after 3 excess instances.">wt</span>
                       <span />
                       <span />
                       <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, textAlign: 'right', cursor: 'help', borderBottom: `1px dotted ${t.textFaintest}` }} title="This rule's contribution to the total weighted hit count">pts</span>
@@ -154,7 +154,7 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                             <span key={row.ruleId + '-eq1'} style={op}>=</span>
                             <span key={row.ruleId + '-exc'} style={val}>{fmt(row.excessWeight)}</span>
                             <span key={row.ruleId + '-times'} style={op}>×</span>
-                            <span key={row.ruleId + '-cat'} style={val}>{row.catWeight}{row.scoringMode === 'diminishing' ? '*' : ''}</span>
+                            <span key={row.ruleId + '-cat'} style={val}>{row.ruleWeight}{row.scoringMode === 'diminishing' ? '*' : ''}</span>
                             <span key={row.ruleId + '-eq2'} style={op}>=</span>
                             <span />
                             <span key={row.ruleId + '-pts'} style={{ fontFamily: 'monospace', fontWeight: '600', color: t.text, textAlign: 'right', fontSize: '10px' }}>{row.contribution.toFixed(2)}</span>
@@ -198,17 +198,6 @@ export default function Sidebar({ violations, hiddenRules, onToggleRule, onRuleH
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: t.textFainter, fontFamily: 'monospace', fontSize: '10px' }}>{range}</span>
                       <span style={{ fontWeight: '700', color, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Category weights reference */}
-                <div style={{ marginTop: '8px', borderTop: `1px solid ${t.border}`, paddingTop: '7px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textFaintest, marginBottom: '3px' }}>Category weights</div>
-                  {(Object.entries(CATEGORY_WEIGHT) as [string, number][]).map(([cat, w]) => (
-                    <div key={cat} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: t.textFainter, fontSize: '10px', textTransform: 'capitalize' }}>{cat.replace('-', ' ')}</span>
-                      <span style={{ fontFamily: 'monospace', fontWeight: '600', color: t.textMuted, fontSize: '10px' }}>×{w}</span>
                     </div>
                   ))}
                 </div>

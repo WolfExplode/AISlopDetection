@@ -1,9 +1,6 @@
 import type { Violation, ViolationCategory } from '../types'
 import { RULES_BY_ID } from '../rules'
-import { CATEGORY_WEIGHT } from '../scoring.config'
 import type { WordfreqEn } from './wordfreq'
-
-export { CATEGORY_WEIGHT }
 
 export type SlopRating = 'Clean' | 'Moderate' | 'Heavy' | 'Slop'
 
@@ -11,7 +8,7 @@ export interface RuleBreakdown {
   ruleId: string
   ruleName: string
   category: ViolationCategory
-  catWeight: number
+  ruleWeight: number
   totalWeight: number
   freeCount: number
   excessWeight: number
@@ -71,9 +68,9 @@ export function computeSlopScore(
 ): SlopScore {
   if (wordCount === 0) return { score: 0, rating: 'Clean', weightedHits: 0, breakdown: [] }
 
-  // Sum per-violation weights per rule.
+  // Sum each rule's instanceWeights into a per-rule total.
   // Grouped violations (same ruleId+groupKey) are one logical incident; their
-  // weight contribution is the average of the individual word weights in the group.
+  // contribution is the average of the individual instanceWeights in the group.
   const weightByRule = new Map<string, number>()
   const groupData = new Map<string, { ruleId: string; weights: number[] }>()
 
@@ -82,10 +79,10 @@ export function computeSlopScore(
     if (v.groupKey) {
       const key = `${v.ruleId}::${v.groupKey}`
       const entry = groupData.get(key) ?? { ruleId: v.ruleId, weights: [] }
-      entry.weights.push(v.weight ?? 1.0)
+      entry.weights.push(v.instanceWeight ?? 1.0)
       groupData.set(key, entry)
     } else {
-      weightByRule.set(v.ruleId, (weightByRule.get(v.ruleId) ?? 0) + (v.weight ?? 1.0))
+      weightByRule.set(v.ruleId, (weightByRule.get(v.ruleId) ?? 0) + (v.instanceWeight ?? 1.0))
     }
   }
 
@@ -101,16 +98,16 @@ export function computeSlopScore(
   for (const [ruleId, totalWeight] of weightByRule) {
     const rule = RULES_BY_ID[ruleId]
     if (!rule) continue
-    const catWeight = CATEGORY_WEIGHT[rule.category]
+    const ruleWeight = rule.ruleWeight
 
     const freeCount = (wordCount / 1000) * rule.freeRate
     const excessWeight = Math.max(0, totalWeight - freeCount)
 
     let contribution: number
     if (rule.scoringMode === 'diminishing') {
-      contribution = applyDiminishing(catWeight, excessWeight)
+      contribution = applyDiminishing(ruleWeight, excessWeight)
     } else {
-      contribution = excessWeight * catWeight
+      contribution = excessWeight * ruleWeight
     }
 
     weightedHits += contribution
@@ -118,7 +115,7 @@ export function computeSlopScore(
       ruleId,
       ruleName: rule.name,
       category: rule.category,
-      catWeight,
+      ruleWeight,
       totalWeight,
       freeCount,
       excessWeight,
@@ -243,9 +240,9 @@ export function computeMATTR(text: string, windowSize = 500): MattrResult | null
 
 export const RATING_COLOR: Record<SlopRating, string> = {
   Clean: '#16a34a',
-  Moderate: '#d97706',
-  Heavy: '#dc2626',
-  Slop: '#7c3aed',
+  Moderate: '#ca8a04',
+  Heavy: '#ea580c',
+  Slop: '#dc2626',
 }
 
 // ── Human Baseline Word Overuse ───────────────────────────────────────────────

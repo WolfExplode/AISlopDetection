@@ -197,7 +197,7 @@ function verbViolations(doc: NlpDoc, stem: RegExp, ruleId: string): Violation[] 
       startIndex: start,
       endIndex: start + length,
       matchedText: term.text,
-      weight: VERB_WEIGHTS[base ?? ''] ?? 0.70,
+      instanceWeight: VERB_WEIGHTS[base ?? ''] ?? 0.70,
       suggestedChange,
     })
   }
@@ -293,7 +293,7 @@ export function detectVerbIntensifierForms(text: string): Violation[] {
           startIndex: m.index,
           endIndex: m.index + m[0].length,
           matchedText: m[0],
-          weight,
+          instanceWeight: weight,
           suggestedChange: suggestion,
         })
       }
@@ -346,7 +346,7 @@ function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
       if (!term?.offset) return
       if (permittedPositions.has(term.offset.start)) return
       const { start, length } = term.offset
-      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: term.text, weight })
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: term.text, instanceWeight: weight })
     })
 
     // Case 2: attributive — "[word] #Noun", flag the adjective (terms[0]).
@@ -359,7 +359,7 @@ function detectAdjectiveIntensifiers(doc: NlpDoc, ruleId: string): Violation[] {
       if (!adjTerm?.offset) return
       if (permittedPositions.has(adjTerm.offset.start)) return
       const { start, length } = adjTerm.offset
-      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: adjTerm.text, weight })
+      violations.push({ ruleId, startIndex: start, endIndex: start + length, matchedText: adjTerm.text, instanceWeight: weight })
     })
   }
   return violations
@@ -407,16 +407,16 @@ function detectContextSensitiveAdverbs(doc: NlpDoc, ruleId: string): Violation[]
   }
   return candidates
     .filter(v => !beforeActionVerb.has(v.startIndex))
-    .map(v => ({ ...v, weight: CONTEXT_SENSITIVE_ADVERBS[v.matchedText.toLowerCase()] ?? 0.55 }))
+    .map(v => ({ ...v, instanceWeight: CONTEXT_SENSITIVE_ADVERBS[v.matchedText.toLowerCase()] ?? 0.55 }))
 }
 
 /** Run all NLP sub-detectors on a pre-parsed doc; positions are chunk-relative */
 function runNlpDetectors(doc: NlpDoc, chunkText: string): Violation[] {
   const v: Violation[] = []
-  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifier').map(x => ({ ...x, weight: 0.60 })))
+  v.push(...firstTermViolations(doc, 'key #Noun', 'overused-intensifier').map(x => ({ ...x, instanceWeight: 0.60 })))
   v.push(...verbViolations(doc, OVERUSED_VERB_RE, 'overused-intensifier'))
   v.push(...verbViolations(doc, /^craft/i, 'elevated-register'))
-  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifier').map(x => ({ ...x, weight: 0.75 })))
+  v.push(...inAWayViolations(doc, chunkText, 'overused-intensifier').map(x => ({ ...x, instanceWeight: 0.75 })))
   v.push(...detectAdjectiveIntensifiers(doc, 'overused-intensifier'))
   v.push(...detectContextSensitiveAdverbs(doc, 'filler-adverbs'))
   return v

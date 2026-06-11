@@ -2,14 +2,13 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { ViolationRule } from '../types'
 import { useTheme } from '../theme'
-import { CATEGORY_WEIGHT } from '../utils/slopScore'
 
 export interface PopoverViolationData {
   startIndex: number
   endIndex: number
   matchedText: string
-  weight?: number          // this violation's own signal weight (0–1)
-  clusterWeight?: number   // average weight across the group (stacked-intensifiers etc.)
+  instanceWeight?: number  // this single instance's signal strength (0–1)
+  clusterWeight?: number   // average instanceWeight across the group (stacked-intensifiers etc.)
   clusterSize?: number     // how many violations share the group
   explanation?: string
   suggestedChange?: string | null
@@ -94,14 +93,14 @@ function signalTier(w: number): { label: string; color: string } {
   return               { label: 'Weak tell',            color: '#6b7280' }
 }
 
-function SignalStrength({ weight, clusterWeight, clusterSize, t }: {
-  weight: number
+function SignalStrength({ instanceWeight, clusterWeight, clusterSize, t }: {
+  instanceWeight: number
   clusterWeight?: number
   clusterSize?: number
   t: ReturnType<typeof useTheme>
 }) {
   const isCluster = clusterWeight !== undefined && clusterSize !== undefined && clusterSize > 1
-  const effective = isCluster ? clusterWeight! : weight
+  const effective = isCluster ? clusterWeight! : instanceWeight
   const { label, color } = signalTier(effective)
 
   return (
@@ -136,7 +135,6 @@ function scoringModeLabel(mode: ViolationRule['scoringMode'], freeRate: number):
 }
 
 function ScoringBreakdown({ rule, t }: { rule: ViolationRule; t: ReturnType<typeof useTheme> }) {
-  const catWeight = CATEGORY_WEIGHT[rule.category]
   const modeLabel = scoringModeLabel(rule.scoringMode, rule.freeRate)
 
   const lineStyle: React.CSSProperties = {
@@ -158,7 +156,7 @@ function ScoringBreakdown({ rule, t }: { rule: ViolationRule; t: ReturnType<type
         Scoring
       </span>
       <div style={lineStyle}>Category: <span style={valueStyle}>{rule.category}</span></div>
-      <div style={lineStyle}>Category weight: <span style={valueStyle}>×{catWeight}</span></div>
+      <div style={lineStyle}>Rule weight: <span style={valueStyle}>×{rule.ruleWeight}</span></div>
       <div style={lineStyle}>Mode: <span style={valueStyle}>{modeLabel}</span></div>
     </div>
   )
@@ -170,7 +168,7 @@ export default function Popover({ state, onClose, onApply, onNextRule, onPrevRul
   const t = useTheme()
   const { rules, violations, anchorRect, ruleIndex } = state
   const rule = rules[ruleIndex]
-  const { startIndex, endIndex, matchedText, weight, clusterWeight, clusterSize,
+  const { startIndex, endIndex, matchedText, instanceWeight, clusterWeight, clusterSize,
           explanation, suggestedChange, applyStartIndex, applyEndIndex, applyReplacement } = violations[ruleIndex] ?? violations[0]
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -248,8 +246,8 @@ export default function Popover({ state, onClose, onApply, onNextRule, onPrevRul
 
       {/* Body */}
       <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {weight !== undefined && (
-          <SignalStrength weight={weight} clusterWeight={clusterWeight} clusterSize={clusterSize} t={t} />
+        {instanceWeight !== undefined && (
+          <SignalStrength instanceWeight={instanceWeight} clusterWeight={clusterWeight} clusterSize={clusterSize} t={t} />
         )}
 
         <ScoringBreakdown rule={rule} t={t} />

@@ -24,6 +24,7 @@ export interface ViolationRule {
   llmDetectionHint?: string           // detection description used in LLM analysis prompts
   rewriteHint?: string                // human-readable description shown in rewrite debug panel
   llmDirective?: string               // terse imperative sent to the model in rewrite prompts
+  ruleWeight: number   // per-type score multiplier; encodes how exclusively this pattern marks AI output
   scoringMode: ScoringMode
   freeRate: number     // instances per 1000 words that cost nothing (0 for linear/diminishing)
 }
@@ -33,7 +34,7 @@ export interface Violation {
   startIndex: number
   endIndex: number
   matchedText: string
-  weight?: number              // per-violation signal strength (0–1); defaults to 1.0 in scoring
+  instanceWeight?: number      // this single instance's signal strength (0–1); defaults to 1.0 in scoring
   explanation?: string
   suggestedChange?: string | null  // null = explicitly no action (don't fall back to canRemove deletion)
   // When set, violations sharing the same ruleId+groupKey are counted as one logical

@@ -41,7 +41,7 @@ function findAll(text: string, pattern: RegExp, ruleId: string, weight?: number)
       endIndex: m.index + m[0].length,
       matchedText: m[0],
     }
-    if (weight !== undefined) v.weight = weight
+    if (weight !== undefined) v.instanceWeight = weight
     violations.push(v)
   }
   return violations
@@ -101,7 +101,7 @@ export function detectElevatedRegister(text: string): Violation[] {
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],
-        weight,
+        instanceWeight: weight,
         suggestedChange: replacement === null ? null : (replacement || undefined),
       })
     }
@@ -155,7 +155,7 @@ export function detectImportantToNote(text: string): Violation[] {
 }
 
 export function detectBroaderImplications(text: string): Violation[] {
-  const re = /\b(broader\s+implications?|wider\s+implications?|implications?\s+(for|of|on)\s+the\s+(broader|wider|larger))\b/gi
+  const re = /\b(broader\s+implications?|wider\s+implications?|implications?\s+(for|of|on)\s+the\s+(broader|wider|larger)|reflects?\s+(broader|wider)\s+\w+)\b/gi
   return findAll(text, re, 'broader-implications')
 }
 
@@ -189,7 +189,7 @@ export function detectConnectorAddiction(text: string): Violation[] {
         startIndex: highlightStart,
         endIndex: highlightEnd,
         matchedText: text.slice(highlightStart, highlightEnd),
-        weight,
+        instanceWeight: weight,
         suggestedChange: '',
         applyStartIndex: m.index,
         applyEndIndex: m.index + fullMatch.length,
@@ -396,7 +396,7 @@ export function detectHedgeStack(text: string): Violation[] {
         startIndex: offset,
         endIndex: offset + sentence.length,
         matchedText: sentence,
-        weight: totalW / found.length,
+        instanceWeight: totalW / found.length,
         explanation: `Contains ${found.length} hedges: ${found.slice(0, 4).join(', ')}`,
       })
     }
@@ -993,7 +993,7 @@ export function detectSignificancePhrases(text: string): Violation[] {
   const violations: Violation[] = []
   // "plays/played/playing a [adj] role"
   violations.push(...findAll(text,
-    /\b(?:plays?|played|playing)\s+a\s+(?:key|crucial|vital|pivotal|central|significant|important)\s+role\b/gi,
+    /\b(?:plays?|played|playing)\s+a\s+(?:key|crucial|vital|pivotal|central|significant|important|integral)\s+role\b/gi,
     'significance-phrases'))
   // "sheds/shed/shedding light on"
   violations.push(...findAll(text,
@@ -1089,7 +1089,7 @@ export function detectStackedIntensifiers(text: string): Violation[] {
               startIndex: para.start + hit.offsetInPara,
               endIndex: para.start + hit.offsetInPara + hit.length,
               matchedText: text.slice(para.start + hit.offsetInPara, para.start + hit.offsetInPara + hit.length),
-              weight: EVALUATIVE_INTENSIFIERS[hit.word] ?? 0.50,
+              instanceWeight: EVALUATIVE_INTENSIFIERS[hit.word] ?? 0.50,
               explanation,
             })
           }
@@ -1122,7 +1122,7 @@ export function detectSlopTrigrams(text: string): Violation[] {
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],
-        weight,
+        instanceWeight: weight,
       })
     }
   }
@@ -1145,7 +1145,7 @@ export function detectSlopBigrams(text: string): Violation[] {
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],
-        weight,
+        instanceWeight: weight,
       })
     }
   }
@@ -1171,7 +1171,7 @@ export function detectScareQuotes(text: string): Violation[] {
       startIndex: m.index,
       endIndex: m.index + m[0].length,
       matchedText: m[0],
-      weight: 0.3,
+      instanceWeight: 0.3,
     })
   }
   return violations
@@ -1219,7 +1219,7 @@ export function detectFictionBodyLanguage(text: string): Violation[] {
         startIndex: hit.start,
         endIndex: hit.end,
         matchedText: text.slice(hit.start, hit.end),
-        weight: hit.weight,
+        instanceWeight: hit.weight,
         explanation,
       })
     }
@@ -1244,7 +1244,7 @@ export function detectAICharacterNames(text: string): Violation[] {
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         matchedText: m[0],
-        weight: 0.75,
+        instanceWeight: 0.75,
       })
     }
   }

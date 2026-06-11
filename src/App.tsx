@@ -295,14 +295,14 @@ export default function App() {
           x => x.ruleId === ruleId && x.groupKey === v.groupKey
         )
         clusterSize = group.length
-        clusterWeight = group.reduce((sum, x) => sum + (x.weight ?? 1.0), 0) / group.length
+        clusterWeight = group.reduce((sum, x) => sum + (x.instanceWeight ?? 1.0), 0) / group.length
       }
 
       return {
         startIndex: v?.startIndex ?? startIndex,
         endIndex: v?.endIndex ?? endIndex,
         matchedText: v?.matchedText ?? textRef.current.slice(startIndex, endIndex),
-        weight: v?.weight,
+        instanceWeight: v?.instanceWeight,
         clusterWeight,
         clusterSize,
         explanation: v?.explanation,

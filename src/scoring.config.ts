@@ -1,74 +1,95 @@
-import type { ScoringMode, ViolationCategory } from './types'
+import type { ScoringMode } from './types'
 
-export const CATEGORY_WEIGHT: Record<ViolationCategory, number> = {
-  'word-choice': 1.2,
-  'sentence-structure': 1.8,
-  'rhetorical': 2.5,
-  'framing': 2.8,
-  'structural': 3,
-}
+// Per-rule scoring config. `ruleWeight` is the multiplier applied to a rule's
+// excess violation weight when computing its score contribution (replaces the
+// old category-wide multiplier). It is the weight of the violation *type* —
+// distinct from Violation.instanceWeight, the per-hit signal strength summed
+// into that excess. It encodes how exclusively the pattern marks AI output,
+// on a rough scale:
+//
+//   ~5.0  Definitive artifact — essentially never written by a human on purpose
+//   ~3.0  Strong tell — highly characteristic of LLM prose, rare in good writing
+//   ~2.5  Characteristic — AI-leaning, but humans do it occasionally
+//   ~1.8  Moderate — common pattern that AI overuses
+//   ~1.2  Weak / lexical — frequent in good human prose, or the per-word weights
+//         (INTENSIFIERS, SLOP_BIGRAMS, etc.) already carry most of the signal
+//
+// These are judgment calls, not empirically fitted. The rating thresholds in
+// computeSlopScore assume roughly this scale; retune them if weights shift a lot.
+export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: ScoringMode; freeRate: number }> = {
+  // ── Word choice (lexical; per-word weights carry most of the signal) ────────
+  'overused-intensifier':     { ruleWeight: 1.3, scoringMode: 'diminishing', freeRate: 0 },
+  'elevated-register':        { ruleWeight: 1.5, scoringMode: 'diminishing', freeRate: 0 },
+  'filler-adverbs':           { ruleWeight: 1.2, scoringMode: 'diminishing', freeRate: 0 },
+  'filler-adjectives':        { ruleWeight: 1.3, scoringMode: 'diminishing', freeRate: 0 },
+  'quote-overuse':            { ruleWeight: 1.4, scoringMode: 'linear',      freeRate: 0 },
+  'almost-hedge':             { ruleWeight: 1.5, scoringMode: 'threshold',   freeRate: 0.5 },
 
-export const RULE_SCORING: Record<string, { scoringMode: ScoringMode; freeRate: number }> = {
-  'overused-intensifier':     { scoringMode: 'diminishing', freeRate: 0 },
-  'stacked-intensifiers':     { scoringMode: 'linear',      freeRate: 0 },
-  'elevated-register':        { scoringMode: 'diminishing', freeRate: 0 },
-  'filler-adverbs':           { scoringMode: 'diminishing', freeRate: 0 },
-  'almost-hedge':             { scoringMode: 'threshold',   freeRate: 0.5 },
-  'era-opener':               { scoringMode: 'threshold',   freeRate: 0.5 },
-  'quote-overuse':            { scoringMode: 'linear',      freeRate: 0 },
-  'metaphor-crutch':          { scoringMode: 'threshold',   freeRate: 0.5 },
-  'broader-implications':     { scoringMode: 'diminishing', freeRate: 0 },
-  'em-dash-overuse':          { scoringMode: 'threshold',   freeRate: 1.0 },
-  'negation-pivot':           { scoringMode: 'linear',      freeRate: 0 },
-  'colon-elaboration':        { scoringMode: 'threshold',   freeRate: 1.0 },
-  'question-then-answer':     { scoringMode: 'threshold',   freeRate: 1.5 },
-  'staccato-burst':           { scoringMode: 'threshold',   freeRate: 0.5 },
-  'hedge-stack':              { scoringMode: 'threshold',   freeRate: 0.5 },
-  'parenthetical-qualifier':  { scoringMode: 'threshold',   freeRate: 0 },
-  'unnecessary-contrast':     { scoringMode: 'threshold',   freeRate: 0.5 },
-  'important-to-note':        { scoringMode: 'diminishing', freeRate: 0 },
-  'false-conclusion':         { scoringMode: 'diminishing', freeRate: 0 },
-  'connector-addiction':      { scoringMode: 'threshold',   freeRate: 0.5 },
-  'listicle-instinct':        { scoringMode: 'threshold',   freeRate: 0.5 },
-  'serves-as':                { scoringMode: 'diminishing', freeRate: 0 },
-  'negation-countdown':       { scoringMode: 'linear',      freeRate: 0 },
-  'anaphora-abuse':           { scoringMode: 'threshold',   freeRate: 0.5 },
-  'gerund-fragment-litany':   { scoringMode: 'threshold',   freeRate: 0.5 },
-  'superficial-analysis':     { scoringMode: 'diminishing', freeRate: 0 },
-  'heres-the-kicker':         { scoringMode: 'linear',      freeRate: 0 },
-  'pedagogical-aside':        { scoringMode: 'linear',      freeRate: 0 },
-  'imagine-world':            { scoringMode: 'linear',      freeRate: 0 },
-  'vague-attribution':        { scoringMode: 'threshold',   freeRate: 1.0 },
-  'despite-challenges':       { scoringMode: 'threshold',   freeRate: 0.5 },
-  'listicle-trench-coat':     { scoringMode: 'threshold',   freeRate: 0.5 },
-  'bold-first-bullets':       { scoringMode: 'threshold',   freeRate: 1.0 },
-  'unicode-decoration':       { scoringMode: 'threshold',   freeRate: 0.5 },
-  'dramatic-fragment':        { scoringMode: 'threshold',   freeRate: 0.5 },
-  'invented-concept-label':   { scoringMode: 'threshold',   freeRate: 0.5 },
-  'short-hook-paragraph':     { scoringMode: 'threshold',   freeRate: 0.5 },
-  'significance-phrases':     { scoringMode: 'diminishing', freeRate: 0 },
-  'exemplar-cliche':          { scoringMode: 'diminishing', freeRate: 0 },
-  'chatbot-artifact':         { scoringMode: 'linear',      freeRate: 0 },
-  'knowledge-cutoff-disclaimer': { scoringMode: 'linear',   freeRate: 0 },
-  'slop-trigram':             { scoringMode: 'diminishing', freeRate: 0 },
-  'slop-bigram':              { scoringMode: 'diminishing', freeRate: 0 },
-  'triple-construction':      { scoringMode: 'threshold',   freeRate: 1.5 },
-  'throat-clearing':          { scoringMode: 'linear',      freeRate: 0 },
-  'sycophantic-frame':        { scoringMode: 'linear',      freeRate: 0 },
-  'balanced-take':            { scoringMode: 'linear',      freeRate: 0 },
-  'unnecessary-elaboration':  { scoringMode: 'diminishing', freeRate: 0 },
-  'empathy-performance':      { scoringMode: 'linear',      freeRate: 0 },
-  'pivot-paragraph':          { scoringMode: 'linear',      freeRate: 0 },
-  'false-range':              { scoringMode: 'threshold',   freeRate: 0.5 },
-  'grandiose-stakes':         { scoringMode: 'linear',      freeRate: 0 },
-  'historical-analogy-stack': { scoringMode: 'linear',      freeRate: 0 },
-  'false-vulnerability':      { scoringMode: 'linear',      freeRate: 0 },
-  'dead-metaphor':            { scoringMode: 'linear',      freeRate: 0 },
-  'one-point-dilution':       { scoringMode: 'linear',      freeRate: 0 },
-  'fractal-summaries':        { scoringMode: 'linear',      freeRate: 0 },
-  'filler-adjectives':        { scoringMode: 'diminishing', freeRate: 0 },
-  'fiction-body-language':    { scoringMode: 'diminishing', freeRate: 0 },
-  'ai-character-name':        { scoringMode: 'diminishing', freeRate: 0 },
+  // ── Statistical n-gram / name tells (validated against human baselines) ─────
+  'slop-trigram':             { ruleWeight: 3.2, scoringMode: 'diminishing', freeRate: 0 },
+  'slop-bigram':              { ruleWeight: 2.5, scoringMode: 'diminishing', freeRate: 0 },
+  'fiction-body-language':    { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
+  'ai-character-name':        { ruleWeight: 2.8, scoringMode: 'diminishing', freeRate: 0 },
+
+  // ── Definitive artifacts — a human almost never produces these ──────────────
+  'chatbot-artifact':         { ruleWeight: 5.0, scoringMode: 'linear',      freeRate: 0 },
+  'knowledge-cutoff-disclaimer': { ruleWeight: 5.0, scoringMode: 'linear',   freeRate: 0 },
+
+  // ── Sentence structure ──────────────────────────────────────────────────────
+  'negation-pivot':           { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'negation-countdown':       { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
+  'serves-as':                { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
+  'superficial-analysis':     { ruleWeight: 3.0, scoringMode: 'diminishing', freeRate: 0 },
+  'unnecessary-elaboration':  { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
+  'gerund-fragment-litany':   { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
+  'anaphora-abuse':           { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 0.5 },
+  'short-hook-paragraph':     { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'staccato-burst':           { ruleWeight: 1.7, scoringMode: 'threshold',   freeRate: 0.5 },
+  'hedge-stack':              { ruleWeight: 1.8, scoringMode: 'threshold',   freeRate: 0.5 },
+  'unnecessary-contrast':     { ruleWeight: 1.7, scoringMode: 'threshold',   freeRate: 0.5 },
+  'parenthetical-qualifier':  { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 0 },
+  'question-then-answer':     { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 1.5 },
+  'false-range':              { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
+  'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.0 },
+  'em-dash-overuse':          { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.0 },
+  'triple-construction':      { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.5 },
+
+  // ── Rhetorical ──────────────────────────────────────────────────────────────
+  'sycophantic-frame':        { ruleWeight: 3.5, scoringMode: 'linear',      freeRate: 0 },
+  'empathy-performance':      { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
+  'false-vulnerability':      { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'throat-clearing':          { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'historical-analogy-stack': { ruleWeight: 2.6, scoringMode: 'linear',      freeRate: 0 },
+  'balanced-take':            { ruleWeight: 2.6, scoringMode: 'linear',      freeRate: 0 },
+  'significance-phrases':     { ruleWeight: 2.8, scoringMode: 'diminishing', freeRate: 0 },
+  'important-to-note':        { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
+  'despite-challenges':       { ruleWeight: 2.6, scoringMode: 'threshold',   freeRate: 0.5 },
+  'pedagogical-aside':        { ruleWeight: 2.5, scoringMode: 'linear',      freeRate: 0 },
+  'imagine-world':            { ruleWeight: 2.5, scoringMode: 'linear',      freeRate: 0 },
+  'heres-the-kicker':         { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
+  'exemplar-cliche':          { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
+  'vague-attribution':        { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 1.0 },
+  'false-conclusion':         { ruleWeight: 1.9, scoringMode: 'diminishing', freeRate: 0 },
+  'connector-addiction':      { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 0.5 },
+
+  // ── Framing ─────────────────────────────────────────────────────────────────
+  'grandiose-stakes':         { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'dead-metaphor':            { ruleWeight: 2.8, scoringMode: 'linear',      freeRate: 0 },
+  'broader-implications':     { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
+  'invented-concept-label':   { ruleWeight: 2.6, scoringMode: 'threshold',   freeRate: 0.5 },
+  'metaphor-crutch':          { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'era-opener':               { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'stacked-intensifiers':     { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
+
+  // ── Structural ──────────────────────────────────────────────────────────────
+  'fractal-summaries':        { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
+  'pivot-paragraph':          { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'one-point-dilution':       { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
+  'listicle-trench-coat':     { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'bold-first-bullets':       { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 1.0 },
+  'listicle-instinct':        { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
+  'unicode-decoration':       { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
+  'dramatic-fragment':        { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
 }
 
 // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
@@ -125,6 +146,8 @@ export const INTENSIFIERS: Record<string, number> = {
   'wellspring':     0.88,
   'groundwork':     0.65,
   'meaningful':     0.50,
+  'renowned':       0.65,
+  'nestled':        0.88,
 }
 
 // Multi-word phrases that are overused LLM clichés
@@ -134,6 +157,10 @@ export const INTENSIFIER_PHRASES: Record<string, number> = {
   'indelible mark':    0.90,
   'key turning point': 0.75,
   'setting the stage': 0.70,
+  'in the heart of':   0.75,
+  'diverse array':     0.82,
+  'rich history':      0.72,
+  'rich tradition':    0.72,
 }
 
 // Adjective intensifiers moved to NLP layer: flagged only in predicate position
@@ -179,6 +206,8 @@ export const VERB_INTENSIFIERS: string[] = [
   'showcase', 'illuminate', 'crystallize',
   // From eqbench slop list — missing corporate/analytical verbs
   'optimize', 'amplify', 'empower',
+  // Promotional copula avoidance (Wikipedia: AI substitutes "boasts" for "has")
+  'boasts',
 ]
 
 export const ELEVATED_REGISTER: [string, string | null, number][] = [
