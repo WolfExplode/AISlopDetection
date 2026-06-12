@@ -22,7 +22,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'elevated-register':        { ruleWeight: 1.5, scoringMode: 'diminishing', freeRate: 0 },
   'filler-adverbs':           { ruleWeight: 1.2, scoringMode: 'diminishing', freeRate: 0 },
   'filler-adjectives':        { ruleWeight: 1.3, scoringMode: 'diminishing', freeRate: 0 },
-  'quote-overuse':            { ruleWeight: 1.4, scoringMode: 'linear',      freeRate: 0 },
+  'quote-overuse':            { ruleWeight: 1.8, scoringMode: 'linear',      freeRate: 0 },
   'almost-hedge':             { ruleWeight: 1.5, scoringMode: 'threshold',   freeRate: 0.5 },
 
   // ── Statistical n-gram / name tells (validated against human baselines) ─────
@@ -97,6 +97,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'one-point-dilution':       { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
   'listicle-trench-coat':     { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
   'bold-first-bullets':       { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 1.0 },
+  'inline-emphasis':          { ruleWeight: 1.5, scoringMode: 'threshold',   freeRate: 1.5 },
   'listicle-instinct':        { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'unicode-decoration':       { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'dramatic-fragment':        { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
@@ -353,6 +354,17 @@ export const METAPHOR_CRUTCHES: Record<string, number> = {
   'ahead of the curve':          0.70,
   'writing on the wall':         0.65,
   'canary in the coal mine':     0.70,
+  'piece of the puzzle':         0.85,
+  'missing piece of the puzzle': 0.80,
+  'connect the dots':            0.70,
+  'at its core':                 0.60,
+  'paint a picture':             0.65,
+  'move the goalposts':          0.70,
+  "in the driver's seat":        0.65,
+  'thread the needle':           0.65,
+  'drill down':                  0.70,
+  'tapestry of':                 0.70,
+  'weave together':              0.60,
 }
 
 export const FALSE_CONCLUSION_PHRASES: Record<string, number> = {
@@ -899,6 +911,61 @@ export const SLOP_WORDS_ESSAY: Record<string, number> = {
   'unflinching': 0.65, 'unmet': 0.48, 'unparalleled': 0.75, 'upheavals': 0.58, 'utilizing': 0.78,
   'utilizes': 0.75,
   'vulnerabilities': 0.45, 'wellspring': 0.85, 'workflows': 0.42,
+}
+
+export const COMMA_QUALIFIERS: string[] = [
+  'of course', 'to be fair', 'it should be said', 'needless to say',
+  'in fairness', 'admittedly', 'to be sure', 'it must be said',
+  'after all', 'as we know', 'as everyone knows',
+]
+
+export const HERES_THE_KICKER_PHRASES: string[] = [
+  "here's the kicker",
+  "here's the thing",
+  "here's where it gets interesting",
+  "here's what most people miss",
+  "here's the real",
+]
+
+export const PEDAGOGICAL_PHRASES: string[] = [
+  "let's break this down",
+  "let's unpack",
+  "let's explore",
+  "let's dive in",
+  "let's examine",
+  "think of it as",
+  "think of it like",
+  "think of this as",
+  // From slopbuster text-communication: additional teacher-mode openers
+  "let's consider",
+  "let's walk through",
+  "let's look at",
+]
+
+export const VAGUE_ATTRIBUTION_PHRASES: string[] = [
+  'experts argue', 'experts say', 'experts suggest', 'experts believe', 'experts note',
+  'industry analysts', 'observers have noted', 'observers have cited', 'observers argue',
+  'analysts note', 'analysts suggest', 'many experts', 'several experts', 'some experts',
+  'according to experts', 'studies show', 'research suggests',
+  // From slopbuster Rule 2 (notability name-dropping) / Rule 5 (vague attributions)
+  'industry reports', 'it is widely believed', 'widely recognized',
+  'many argue', 'some critics argue', 'some argue', 'widely regarded',
+]
+
+// Phrases that label something as authoritative or exemplary without arguing why.
+// instanceWeight encodes how exclusively the phrase marks AI prose:
+//   ~1.0  Near-definitive — humans rarely write this in prose
+//   ~0.35 Domain jargon — common in legitimate technical/medical writing
+export const EXEMPLAR_CLICHE_PHRASES: Record<string, number> = {
+  'textbook example':      1.0,
+  'classic example':       1.0,
+  'prime example':         1.0,
+  'perfect example':       1.0,
+  'quintessential example': 1.0,
+  'poster child':          1.0,
+  'hallmark of':           1.0,
+  'case in point':         1.0,
+  'gold standard':         0.35,
 }
 
 export const SLOP_BIGRAMS: Record<string, number> = {

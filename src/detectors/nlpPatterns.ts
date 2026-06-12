@@ -519,10 +519,25 @@ export function detectNegationPivotStructural(text: string): Violation[] {
       if (s1.text.trim().split(/\s+/).length < 3) continue
 
       const s2trimmed = s2.text.trimStart()
-      const s1firstWord = s1.text.trimStart().match(/^\S+/)?.[0] ?? ''
+      const s1trimmed = s1.text.trimStart()
+      const s1firstWord = s1trimmed.match(/^\S+/)?.[0] ?? ''
 
-      const startsWithCoreferent = COREFERENT_RE.test(s2trimmed)
+      // "this/that/these/those" after a first-person negation ("I can't X. This is Y.")
+      // almost always refers to the surrounding situation, not to the negated thing.
+      // The classic slop pivot is third-person: "X isn't Y. It's Z."
+      // Strip leading quote chars before the first-person check — sentence splitter
+      // keeps opening quotes attached to the sentence start (e.g. `"I can't...`).
+      const s1unquoted = s1trimmed.replace(/^\W+/, '')
+      const FIRST_PERSON_RE = /^(I|We|My|Our)\b/
+      const DEMONSTRATIVE_RE = /^(this|that|these|those)\b/i
+      const startsWithCoreferent = COREFERENT_RE.test(s2trimmed) &&
+        !(FIRST_PERSON_RE.test(s1unquoted) && DEMONSTRATIVE_RE.test(s2trimmed))
+
+      // Articles ("The", "A", "An") carry no subject identity — exclude them from
+      // same-subject matching so "The X... The Y." doesn't fire.
+      const ARTICLE_RE = /^(the|a|an)\b$/i
       const startsWithSameSubject = s1firstWord.length > 1 &&
+        !ARTICLE_RE.test(s1firstWord) &&
         s2trimmed.toLowerCase().startsWith(s1firstWord.toLowerCase())
 
       if (!startsWithCoreferent && !startsWithSameSubject) continue
@@ -665,7 +680,9 @@ export function detectShortHookParagraph(text: string): Violation[] {
 
     const wordCount = (s: string) => s.trim().split(/\s+/).length
     const firstWords = wordCount(sentences[0])
-    if (firstWords > 10) continue
+    if (firstWords > 10 || firstWords < 2) continue
+    // Skip heading/label fragments like "### 4." or "**B." — markdown markers + short token
+    if (/^[#*_\s]*\w{1,3}\.\s*$/.test(sentences[0])) continue
 
     const restLengths = sentences.slice(1).map(wordCount)
     const restAvg = restLengths.reduce((a, b) => a + b, 0) / restLengths.length
@@ -725,6 +742,9 @@ export function detectTripleConstruction(text: string): Violation[] {
   function startsWithProperNoun(t: string): boolean {
     return nlp('x ' + t.trim()).terms().eq(1).has('#ProperNoun')
   }
+  function endsWithAdjective(t: string): boolean {
+    return nlp('x ' + t.trim()).terms().last().has('#Adjective')
+  }
 
   const violations: Violation[] = []
   for (const { text: chunk, offset } of windows.values()) {
@@ -750,9 +770,12 @@ export function detectTripleConstruction(text: string): Violation[] {
     // "A, B and C" — no Oxford comma; B must be short (1–3 words) to avoid matching
     // clause-internal "and" like "you absorb morale damage and replacement costs"
     // Guard: skip if B or C starts with a clause opener
+    // Guard: skip if A ends with an adjective — that comma is stacking descriptors on
+    // a noun ("stiff, elevated shoulders and…"), not separating parallel list items.
     const noOxfordRe = /([^,\n]{3,70}),\s+([\w-]+(?:\s+[\w-]+){0,2})\s+(?:and|or)\s+([^,.!?\n]{3,70})/gi
     while ((m = noOxfordRe.exec(chunk)) !== null) {
       if (CLAUSE_OPENER.test(m[2].trimStart()) || CLAUSE_OPENER.test(m[3].trimStart())) continue
+      if (endsWithAdjective(m[1])) continue  // adjective-stacking comma, not a list separator
       violations.push({ ruleId: 'triple-construction', startIndex: offset + m.index, endIndex: offset + m.index + m[0].length, matchedText: m[0] })
     }
   }

@@ -1,4 +1,4 @@
-import type { Violation } from '../types'
+﻿import type { Violation } from '../types'
 import {
   INTENSIFIERS,
   INTENSIFIER_PHRASES,
@@ -24,6 +24,11 @@ import {
   SLOP_WORDS_ATMOSPHERIC,
   SLOP_WORDS_FANTASY_VOCAB,
   SLOP_WORDS_ESSAY,
+  EXEMPLAR_CLICHE_PHRASES,
+  COMMA_QUALIFIERS,
+  HERES_THE_KICKER_PHRASES,
+  PEDAGOGICAL_PHRASES,
+  VAGUE_ATTRIBUTION_PHRASES,
 } from '../scoring.config'
 
 export {
@@ -146,7 +151,10 @@ export function detectEraOpener(text: string): Violation[] {
 export function detectMetaphorCrutch(text: string): Violation[] {
   const violations: Violation[] = []
   for (const [phrase, weight] of Object.entries(METAPHOR_CRUTCHES)) {
-    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\./g, '[- ]?')
+    const escaped = phrase
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\\\./g, '[- ]?')
+      .replace(/'/g, "[’']")
     const re = new RegExp(`\\b${escaped}\\b`, 'gi')
     violations.push(...findAll(text, re, 'metaphor-crutch', weight))
   }
@@ -323,12 +331,6 @@ export function detectColonElaboration(text: string): Violation[] {
   }
   return violations
 }
-
-const COMMA_QUALIFIERS = [
-  'of course', 'to be fair', 'it should be said', 'needless to say',
-  'in fairness', 'admittedly', 'to be sure', 'it must be said',
-  'after all', 'as we know', 'as everyone knows',
-]
 
 export function detectParentheticalQualifier(text: string): Violation[] {
   // Paren-delimited qualifiers: (which has been widely discussed...)
@@ -685,14 +687,6 @@ export function detectGerundLitany(text: string): Violation[] {
   return violations
 }
 
-const HERES_THE_KICKER_PHRASES = [
-  "here's the kicker",
-  "here's the thing",
-  "here's where it gets interesting",
-  "here's what most people miss",
-  "here's the real",
-]
-
 export function detectHeresTheKicker(text: string): Violation[] {
   const violations: Violation[] = []
   const lower = text.toLowerCase()
@@ -710,21 +704,6 @@ export function detectHeresTheKicker(text: string): Violation[] {
   }
   return violations
 }
-
-const PEDAGOGICAL_PHRASES = [
-  "let's break this down",
-  "let's unpack",
-  "let's explore",
-  "let's dive in",
-  "let's examine",
-  "think of it as",
-  "think of it like",
-  "think of this as",
-  // From slopbuster text-communication: additional teacher-mode openers
-  "let's consider",
-  "let's walk through",
-  "let's look at",
-]
 
 export function detectPedagogicalAside(text: string): Violation[] {
   const violations: Violation[] = []
@@ -765,16 +744,6 @@ export function detectListicleTrenchCoat(text: string): Violation[] {
   if (violations.length < 2) return []
   return violations
 }
-
-const VAGUE_ATTRIBUTION_PHRASES = [
-  'experts argue', 'experts say', 'experts suggest', 'experts believe', 'experts note',
-  'industry analysts', 'observers have noted', 'observers have cited', 'observers argue',
-  'analysts note', 'analysts suggest', 'many experts', 'several experts', 'some experts',
-  'according to experts', 'studies show', 'research suggests',
-  // From slopbuster Rule 2 (notability name-dropping) / Rule 5 (vague attributions)
-  'industry reports', 'it is widely believed', 'widely recognized',
-  'many argue', 'some critics argue', 'some argue', 'widely regarded',
-]
 
 export function detectVagueAttribution(text: string): Violation[] {
   const violations: Violation[] = []
@@ -863,9 +832,9 @@ export function detectPairedNegation(text: string): Violation[] {
 }
 
 export function detectRealityClaim(text: string): Violation[] {
-  // "The gap is real", "This threat cannot be ignored", "That matters"
+  // "The gap is real", "they are legitimate", "this cannot be dismissed", "this actually matters"
   return findAll(text,
-    /\b(?:the\s+\w+|(?:this|that)(?:\s+\w+)?)\s+(?:is\s+(?:very\s+)?(?:real|undeniable|significant)|cannot\s+be\s+(?:ignored|overstated|denied|understated)|matters)\b/gi,
+    /\b(?:(?:the|a|an)\s+\w+|(?:this|that|these|those)(?:\s+\w+)?|it|they)\s+(?:(?:is|are)\s+(?:(?:very|truly|genuinely|so)\s+)?(?:real|undeniable|significant|legitimate|genuine|tangible|palpable|profound|urgent)|cannot\s+be\s+(?:ignored|overstated|denied|understated|dismissed|overlooked|minimized|trivialized)|(?:actually\s+|truly\s+|deeply\s+)?matters)\b/gi,
     'reality-claim')
 }
 
@@ -877,22 +846,12 @@ export function detectSuperficialAnalysis(text: string): Violation[] {
 // ── Exemplar clichés ──────────────────────────────────────────────────────────
 // From slopbuster + universal AI tell: labelling something as proof without arguing why.
 // "A textbook example of X" performs analysis rather than doing it.
-
-const EXEMPLAR_CLICHE_PHRASES = [
-  'textbook example',
-  'classic example',
-  'prime example',
-  'perfect example',
-  'quintessential example',
-  'poster child',
-  'hallmark of',
-  'case in point',
-]
+// Phrase list and per-phrase weights live in scoring.config.ts (EXEMPLAR_CLICHE_PHRASES).
 
 export function detectExemplarCliche(text: string): Violation[] {
   const violations: Violation[] = []
   const lower = text.toLowerCase()
-  for (const phrase of EXEMPLAR_CLICHE_PHRASES) {
+  for (const [phrase, weight] of Object.entries(EXEMPLAR_CLICHE_PHRASES)) {
     let idx = lower.indexOf(phrase)
     while (idx !== -1) {
       violations.push({
@@ -900,6 +859,7 @@ export function detectExemplarCliche(text: string): Violation[] {
         startIndex: idx,
         endIndex: idx + phrase.length,
         matchedText: text.slice(idx, idx + phrase.length),
+        instanceWeight: weight,
       })
       idx = lower.indexOf(phrase, idx + 1)
     }
@@ -1014,6 +974,53 @@ export function detectKnowledgeCutoffDisclaimer(text: string): Violation[] {
   violations.push(...findAll(text,
     /\bmy\s+(?:last\s+)?(?:training(?:\s+(?:data|cutoff|update))?|knowledge\s+(?:base|cutoff))\b/gi,
     'knowledge-cutoff-disclaimer'))
+
+  return violations
+}
+
+// ── Inline Emphasis Spam ──────────────────────────────────────────────────────
+// Flags **bold** and *italic* spans used mid-sentence in prose — a formatting
+// tic LLMs use to make arbitrary phrases seem important.
+// Excludes bullet-start bolds (handled by bold-first-bullets).
+export function detectInlineEmphasis(text: string): Violation[] {
+  const violations: Violation[] = []
+
+  const boldRe = /\*\*([^*\n]{1,60})\*\*/g
+  const italicRe = /(?<!\*)\*(?![\s*])([^*\n]{1,60})\*(?!\*)/g
+
+  for (const re of [boldRe, italicRe]) {
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      // Skip if this is at the start of a bullet line (bold-first-bullets handles those)
+      const lineStart = text.lastIndexOf('\n', m.index - 1) + 1
+      const lineEnd = text.indexOf('\n', m.index)
+      const fullLine = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd)
+      const beforeMatch = text.slice(lineStart, m.index)
+      if (/^[ \t]*[-*•][ \t]+$/.test(beforeMatch)) continue
+
+      // Skip only when the emphasis span IS the entire heading content
+      if (/^#{1,6}\s/.test(fullLine)) {
+        const headingContent = fullLine.replace(/^#{1,6}\s+/, '').trim()
+        if (m[0] === headingContent) continue
+      }
+
+      // Skip title-cased spans — every word starts uppercase, so it's a heading/label
+      const inner = m[1]
+      const words = inner.split(/\s+/).filter(w => /^[a-zA-Z]/.test(w))
+      if (words.length >= 2 && words.every(w => /^[A-Z]/.test(w))) continue
+
+      // Skip numbered/lettered list labels: "A. ...", "1. ...", "B) ..."
+      if (/^[A-Za-z0-9]+[.)]\s/.test(inner)) continue
+
+      violations.push({
+        ruleId: 'inline-emphasis',
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        matchedText: m[0],
+        suggestedChange: m[1],
+      })
+    }
+  }
 
   return violations
 }
@@ -1187,25 +1194,25 @@ export function detectSlopBigrams(text: string): Violation[] {
 
 export function detectScareQuotes(text: string): Violation[] {
   const violations: Violation[] = []
-  const seen = new Set<string>()
-  // Regex literal avoids new RegExp() double-escape issues with \u escapes in Vite/TS
-  // Matches straight (U+0022), left curly (U+201C), or right curly (U+201D) double quotes.
-  const re = /["""]([^"""\r\n]{2,40})["""]/g
+  // Regex literals only -- new RegExp() with \uXXXX silently fails in this Vite/TS pipeline.
+  // Double-quote pass: straight (U+0022), left curly (U+201C), right curly (U+201D).
+  const reDouble = /[“”"]([^“”"\r\n]{2,40})[“”"]/g
+  // Single-quote pass: opening must be U+2018 so U+2019 (apostrophe) can't open a span.
+  const reSingle = /‘([^‘’\r\n]{2,40})’/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    const inner = m[1].trim()
-    const wordCount = inner.split(/\s+/).filter(Boolean).length
-    if (wordCount < 1 || wordCount > 4) continue
-    const key = inner.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    violations.push({
-      ruleId: 'quote-overuse',
-      startIndex: m.index,
-      endIndex: m.index + m[0].length,
-      matchedText: m[0],
-      instanceWeight: 0.3,
-    })
+  for (const re of [reDouble, reSingle]) {
+    while ((m = re.exec(text)) !== null) {
+      const inner = m[1].trim()
+      const wordCount = inner.split(/\s+/).filter(Boolean).length
+      if (wordCount < 1 || wordCount > 4) continue
+      violations.push({
+        ruleId: 'quote-overuse',
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        matchedText: m[0],
+        instanceWeight: 0.3,
+      })
+    }
   }
   return violations
 }

@@ -564,6 +564,12 @@ describe('detectTripleConstruction', () => {
     const vs = detectTripleConstruction('The event featured Apple, Google, and Microsoft as sponsors.')
     expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(true)
   })
+
+  it('does not flag adjective-stacking comma ("stiff, elevated shoulders and…")', () => {
+    // The comma separates two adjectives on the same noun, not parallel list items
+    const vs = detectTripleConstruction('the patient has stiff, elevated shoulders and an unusually rigid upright posture despite appearing alert')
+    expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(false)
+  })
 })
 
 // ── Triple fragment ───────────────────────────────────────────────────────────
@@ -863,6 +869,18 @@ describe('detectNegationPivotStructural', () => {
 
   it('does not flag when negation is in the second clause, not the first', () => {
     expect(pivotViolations("Without any instruction or guidance, it becomes clear that he doesn't particularly care about making your arrival comfortable.").length).toBe(0)
+  })
+
+  it('does not flag first-person negation followed by demonstrative topic sentence', () => {
+    // "I can't X. This is Y." — "This" refers to the surrounding context, not the negated thing
+    expect(pivotViolations("I can't rely on her saying she feels fine or looking calm as reassurance. This is straightforward medical education about trauma evaluation, nothing concerning from a safety angle.").length).toBe(0)
+    // same with surrounding quotation marks — sentence splitter keeps opening quote on S1
+    expect(pivotViolations("“I can't rely on her saying she feels fine or looking calm as reassurance. This is straightforward medical education about trauma evaluation, nothing concerning from a safety angle.”").length).toBe(0)
+  })
+
+  it('does not flag two sentences sharing only a leading article', () => {
+    // "The X... The Y." — "The" is not a subject; same-subject match must not fire on articles
+    expect(pivotViolations("The gold standard would be a pericardial window or serial FAST exams with close observation, because eFAST sensitivity isn't perfect. The wound is in the danger zone, so suspicion needs to stay high.").length).toBe(0)
   })
 })
 

@@ -44,6 +44,8 @@ import {
   detectStackedIntensifiers,
   detectSycophanticPhrases,
   detectSycophanticWords,
+  detectScareQuotes,
+  detectInlineEmphasis,
 } from '../wordPatterns'
 
 // Helper: assert at least one violation of the given rule exists
@@ -532,6 +534,36 @@ describe('detectMetaphorCrutch (spec examples)', () => {
   it('flags "building blocks"', () => {
     assertFires(detectMetaphorCrutch('These are the building blocks of a successful strategy.'), 'metaphor-crutch')
   })
+  it('flags "piece of the puzzle"', () => {
+    assertFires(detectMetaphorCrutch('This is the most important piece of the puzzle.'), 'metaphor-crutch')
+  })
+  it('flags "connect the dots"', () => {
+    assertFires(detectMetaphorCrutch('We need to connect the dots between these two trends.'), 'metaphor-crutch')
+  })
+  it('flags "at its core"', () => {
+    assertFires(detectMetaphorCrutch('At its core, this is a trust problem.'), 'metaphor-crutch')
+  })
+  it('flags "paint a picture"', () => {
+    assertFires(detectMetaphorCrutch('Let me paint a picture of what success looks like.'), 'metaphor-crutch')
+  })
+  it('flags "move the goalposts"', () => {
+    assertFires(detectMetaphorCrutch('They move the goalposts every quarter.'), 'metaphor-crutch')
+  })
+  it("flags \"in the driver's seat\" with straight apostrophe", () => {
+    assertFires(detectMetaphorCrutch("The user is in the driver's seat."), 'metaphor-crutch')
+  })
+  it("flags \"in the driver’s seat\" with curly apostrophe", () => {
+    assertFires(detectMetaphorCrutch('The user is in the driver’s seat.'), 'metaphor-crutch')
+  })
+  it('flags "drill down"', () => {
+    assertFires(detectMetaphorCrutch('We need to drill down into the root cause.'), 'metaphor-crutch')
+  })
+  it('flags "tapestry of"', () => {
+    assertFires(detectMetaphorCrutch('The city is a tapestry of cultures.'), 'metaphor-crutch')
+  })
+  it('flags "thread the needle"', () => {
+    assertFires(detectMetaphorCrutch('The policy needs to thread the needle between growth and safety.'), 'metaphor-crutch')
+  })
 })
 
 // ── Listicle Instinct ──────────────────────────────────────────────────────
@@ -891,6 +923,30 @@ describe('detectRealityClaim', () => {
   it('flags "This problem cannot be overstated"', () => {
     assertFires(detectRealityClaim('This problem cannot be overstated.'), 'reality-claim')
   })
+  it('flags "the stakes are real"', () => {
+    assertFires(detectRealityClaim('the stakes are real.'), 'reality-claim')
+  })
+  it('flags "they are legitimate"', () => {
+    assertFires(detectRealityClaim('they are legitimate.'), 'reality-claim')
+  })
+  it('flags "these concerns are legitimate"', () => {
+    assertFires(detectRealityClaim('these concerns are legitimate.'), 'reality-claim')
+  })
+  it('flags "it is genuine"', () => {
+    assertFires(detectRealityClaim('it is genuine.'), 'reality-claim')
+  })
+  it('flags "the fear is palpable"', () => {
+    assertFires(detectRealityClaim('the fear is palpable.'), 'reality-claim')
+  })
+  it('flags "this cannot be dismissed"', () => {
+    assertFires(detectRealityClaim('this cannot be dismissed.'), 'reality-claim')
+  })
+  it('flags "this actually matters"', () => {
+    assertFires(detectRealityClaim('this actually matters.'), 'reality-claim')
+  })
+  it('flags "it truly matters"', () => {
+    assertFires(detectRealityClaim('it truly matters.'), 'reality-claim')
+  })
   it('does NOT flag "The real problem is funding"', () => {
     assertSilent(detectRealityClaim('The real problem is funding.'), 'reality-claim')
   })
@@ -1136,5 +1192,86 @@ describe('detectSycophanticWords', () => {
   it('does not flag "certainly" without following comma or exclamation', () => {
     const text = 'She was certainly aware of the risks involved.'
     expect(detectSycophanticWords(text).some(v => v.ruleId === 'sycophantic-words')).toBe(false)
+  })
+})
+
+// ── Scare Quotes ──────────────────────────────────────────────────────────────
+
+describe('detectScareQuotes', () => {
+  it('flags word in straight double quotes', () => {
+    assertFires(detectScareQuotes('The system uses "innovation" to mean cost cuts.'), 'quote-overuse')
+  })
+  it('flags word in curly double quotes', () => {
+    assertFires(detectScareQuotes('The “brakes” work fine.'), 'quote-overuse')
+  })
+  it('flags word in curly single quotes', () => {
+    assertFires(detectScareQuotes('Its ‘brakes’ are great (recovery).'), 'quote-overuse')
+  })
+  it('does not flag curly-single-quote apostrophes in contractions', () => {
+    assertSilent(detectScareQuotes("It’s not a quote. Don’t flag this."), 'quote-overuse')
+  })
+  it('flags both occurrences when the same word appears in quotes twice', () => {
+    const hits = detectScareQuotes('(the "brakes" of the car). Your "brakes" are great.')
+    expect(hits.filter(v => v.ruleId === 'quote-overuse')).toHaveLength(2)
+  })
+  it('does not flag more than 4 words inside quotes', () => {
+    assertSilent(detectScareQuotes('"This is a very long phrase inside quotes"'), 'quote-overuse')
+  })
+})
+
+// ── Inline Emphasis Spam ────────────────────────────────────────────────────
+
+describe('detectInlineEmphasis', () => {
+  it('flags **bold** mid-sentence', () => {
+    assertFires(detectInlineEmphasis('Your heart rate goes from 56 to 113 bpm, but **quickly returns to normal**.'), 'inline-emphasis')
+  })
+  it('flags *italic* mid-sentence', () => {
+    assertFires(detectInlineEmphasis('The key insight is *surprisingly simple* once you see it.'), 'inline-emphasis')
+  })
+  it('flags multiple emphasis spans', () => {
+    const hits = detectInlineEmphasis('Use **caution** when handling *raw data* in production.')
+    expect(hits.filter(v => v.ruleId === 'inline-emphasis').length).toBe(2)
+  })
+  it('suggests the inner text as the fix (stripping markers)', () => {
+    const hits = detectInlineEmphasis('This is **very important** to note.')
+    const hit = hits.find(v => v.ruleId === 'inline-emphasis')
+    expect(hit?.suggestedChange).toBe('very important')
+  })
+  it('does NOT flag bullet-start bold (handled by bold-first-bullets)', () => {
+    assertSilent(detectInlineEmphasis('- **Security**: keeps data safe\n- **Performance**: runs fast'), 'inline-emphasis')
+  })
+  it('does NOT flag title-cased bold with 2+ words (heading/label)', () => {
+    assertSilent(detectInlineEmphasis('**B. Something Something Else**'), 'inline-emphasis')
+    assertSilent(detectInlineEmphasis('See **The New York Times** for details.'), 'inline-emphasis')
+  })
+  it('DOES flag a single capitalized word in emphasis', () => {
+    assertFires(detectInlineEmphasis('Your Heart Rate Recovery is *Elite* compared to most people.'), 'inline-emphasis')
+  })
+  it('does NOT treat a * bullet as an italic opener', () => {
+    const hits = detectInlineEmphasis('*   You dropped 25 bpm in *half a minute*.')
+    const v = hits.find(h => h.ruleId === 'inline-emphasis')
+    // should match *half a minute*, not the bullet-to-next-* span
+    expect(v?.matchedText).toBe('*half a minute*')
+  })
+  it('does NOT flag lettered/numbered list item labels inside bold', () => {
+    assertSilent(detectInlineEmphasis('**A. The "Muscle Pump" and Blood Pressure Shifts**'), 'inline-emphasis')
+    assertSilent(detectInlineEmphasis('**1. Introduction to the Topic**'), 'inline-emphasis')
+    assertSilent(detectInlineEmphasis('**B) Another Section**'), 'inline-emphasis')
+  })
+  it('does NOT flag when the entire heading content is the emphasis span', () => {
+    assertSilent(detectInlineEmphasis('## **Core Problem**'), 'inline-emphasis')
+  })
+  it('DOES flag partial emphasis inside a markdown heading', () => {
+    assertFires(detectInlineEmphasis('### 3. Your Heart Rate Recovery is *Elite*'), 'inline-emphasis')
+    assertFires(detectInlineEmphasis('## The **Core** Problem'), 'inline-emphasis')
+  })
+  it('DOES flag emphasis on part of a non-heading list item', () => {
+    assertFires(detectInlineEmphasis('1. Your heart rate recovery is *elite* compared to most.'), 'inline-emphasis')
+  })
+  it('does NOT flag plain text', () => {
+    assertSilent(detectInlineEmphasis('Your heart rate quickly returns to normal.'), 'inline-emphasis')
+  })
+  it('fires via runClientDetectors', () => {
+    assertFires(runClientDetectors('The process is **critically important** for success.'), 'inline-emphasis')
   })
 })
