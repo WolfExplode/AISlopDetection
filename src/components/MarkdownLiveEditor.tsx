@@ -76,6 +76,8 @@ export default function MarkdownLiveEditor({
               const startIndex = parseInt(violationEl.getAttribute('data-start') ?? '0', 10)
               const endIndex = parseInt(violationEl.getAttribute('data-end') ?? '0', 10)
               const anchorRect = violationEl.getBoundingClientRect()
+              const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+              if (pos !== null) view.dispatch({ selection: { anchor: pos } })
               onViolationClickRef.current({ ruleIds, startIndex, endIndex, anchorRect })
               event.preventDefault()
               return true

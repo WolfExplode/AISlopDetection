@@ -39,7 +39,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'knowledge-cutoff-disclaimer': { ruleWeight: 5.0, scoringMode: 'linear',   freeRate: 0 },
 
   // ── Sentence structure ──────────────────────────────────────────────────────
-  'negation-pivot':           { ruleWeight: 3.5, scoringMode: 'linear',      freeRate: 0 },
+  'negation-pivot':           { ruleWeight: 4.0, scoringMode: 'linear',      freeRate: 0 },
   'fragment-negation':        { ruleWeight: 3.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'negation-countdown':       { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'serves-as':                { ruleWeight: 2.2, scoringMode: 'diminishing', freeRate: 0 },
@@ -51,11 +51,11 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'staccato-burst':           { ruleWeight: 2.1, scoringMode: 'threshold',   freeRate: 0.5 },
   'hedge-stack':              { ruleWeight: 1.8, scoringMode: 'threshold',   freeRate: 0.5 },
   'unnecessary-contrast':     { ruleWeight: 1.7, scoringMode: 'threshold',   freeRate: 0.5 },
-  'parenthetical-qualifier':  { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 0 },
+  'parenthetical-qualifier':  { ruleWeight: 3.5, scoringMode: 'diminishing',   freeRate: 0, diminishingFactor: 0.86 },
   'question-then-answer':     { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 1.5 },
   'false-range':              { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
   'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.0 },
-  'em-dash-overuse':          { ruleWeight: 1.2, scoringMode: 'threshold',   freeRate: 1.0 },
+  'em-dash-overuse':          { ruleWeight: 1.4, scoringMode: 'threshold',   freeRate: 1.0 },
   'triple-fragment':          { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 0.5 },
   'triple-construction':      { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 1.5 },
 
@@ -79,7 +79,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'exemplar-cliche':          { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
   'vague-attribution':        { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 1.0 },
   'false-conclusion':         { ruleWeight: 1.9, scoringMode: 'diminishing', freeRate: 0 },
-  'connector-addiction':      { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 0.5 },
+  'connector-addiction':      { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 1.0 },
 
   // ── Framing ─────────────────────────────────────────────────────────────────
   'grandiose-stakes':         { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
@@ -91,6 +91,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'stacked-intensifiers':     { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
 
   // ── Structural ──────────────────────────────────────────────────────────────
+  'slop-cluster':             { ruleWeight: 2.0, scoringMode: 'linear',      freeRate: 0 },
   'fractal-summaries':        { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'pivot-paragraph':          { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
   'one-point-dilution':       { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },

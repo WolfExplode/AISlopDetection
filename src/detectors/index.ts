@@ -124,7 +124,8 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectSlopWords(text),
   ]
   const deduped = deduplicateViolations(all)
-  return fixArticleContext(suppressUnsafeDeletions(deduped, text), text)
+  const clusters = detectSlopCluster(deduped, text)
+  return fixArticleContext(suppressUnsafeDeletions([...deduped, ...clusters], text), text)
 }
 
 // Linking verbs that introduce a predicate adjective. Deleting the adjective
@@ -202,6 +203,54 @@ function fixArticleContext(violations: Violation[], text: string): Violation[] {
       suggestedChange: replacement ? `${correctArticle} ${replacement}` : correctArticle,
     }
   })
+}
+
+function detectSlopCluster(violations: Violation[], text: string): Violation[] {
+  const WINDOW = 100
+  const MIN_UNIQUE_RULES = 3
+
+  const eligible = violations.filter(v => v.ruleId !== 'slop-cluster')
+  if (eligible.length < MIN_UNIQUE_RULES) return []
+
+  const sorted = [...eligible].sort((a, b) => a.startIndex - b.startIndex)
+
+  const candidates: Array<{ start: number; end: number }> = []
+
+  for (let i = 0; i < sorted.length; i++) {
+    const windowStart = sorted[i].startIndex
+    // Never cluster across paragraph boundaries
+    const paraBreak = text.indexOf('\n\n', windowStart)
+    const rawEnd = windowStart + WINDOW
+    const windowEnd = paraBreak !== -1 && paraBreak < rawEnd ? paraBreak : rawEnd
+    const inWindow = sorted.filter(v => v.startIndex >= windowStart && v.startIndex < windowEnd)
+    const uniqueRules = new Set(inWindow.map(v => v.ruleId))
+    if (uniqueRules.size >= MIN_UNIQUE_RULES) {
+      candidates.push({ start: windowStart, end: Math.max(...inWindow.map(v => v.endIndex)) })
+    }
+  }
+
+  if (candidates.length === 0) return []
+
+  // Merge overlapping candidates into the minimal set of spanning violations
+  const merged: Array<{ start: number; end: number }> = []
+  let current = candidates[0]
+  for (let i = 1; i < candidates.length; i++) {
+    if (candidates[i].start <= current.end) {
+      current = { start: current.start, end: Math.max(current.end, candidates[i].end) }
+    } else {
+      merged.push(current)
+      current = candidates[i]
+    }
+  }
+  merged.push(current)
+
+  return merged.map(({ start, end }) => ({
+    ruleId: 'slop-cluster',
+    startIndex: start,
+    endIndex: end,
+    matchedText: text.slice(start, end),
+    suggestedChange: null,
+  }))
 }
 
 // Remove exact duplicates; suppress word-level violations fully contained within a

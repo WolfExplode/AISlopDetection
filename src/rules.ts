@@ -1028,6 +1028,20 @@ export const RULES: ViolationRule[] = [
     llmDirective: "Do not use structural signposting that previews or recaps content ('In this section we will...', 'As we\\'ve seen...') — say the thing directly.",
     ...RULE_SCORING['fractal-summaries'],
   },
+  {
+    id: 'slop-cluster',
+    name: 'Slop Cluster',
+    category: 'structural',
+    description: 'Three or more distinct AI-prose patterns within 200 characters. The density is a stronger signal than any individual tell — human writers rarely stack this many tells in a single passage.',
+    tip: 'Rewriting this passage from scratch will be faster than patching each flag individually. The problem is the register, not any one word.',
+    canRemove: false,
+    color: '#f87171',
+    bgColor: 'rgba(220,38,38,0.04)',
+    requiresLLM: false,
+    rewriteHint: 'Rewrite this passage from scratch — the density of AI patterns makes piecemeal fixes ineffective.',
+    llmDirective: 'Rewrite this passage entirely — the density of AI-prose patterns throughout makes word-level fixes insufficient.',
+    ...RULE_SCORING['slop-cluster'],
+  },
 ]
 
 export const RULES_BY_ID = Object.fromEntries(RULES.map(r => [r.id, r]))
