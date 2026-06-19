@@ -829,7 +829,7 @@ export default function App() {
 
       {/* GitHub link */}
       <a
-        href="https://github.com/awnist/slop-cop"
+        href="https://github.com/WolfExplode/AISlopDetection"
         target="_blank"
         rel="noopener noreferrer"
         style={{

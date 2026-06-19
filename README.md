@@ -2,7 +2,7 @@
 
 A browser-based editor that detects the rhetorical and structural tells of LLM-generated prose — and highlights them in real time.
 
-**[https://awnist.com/slop-cop](https://awnist.com/slop-cop)**
+**[http://slopcop.lilacsummons.xyz/](http://slopcop.lilacsummons.xyz/)**
 
 
 This repo is a combination of many slop detection tools. Built off the backbone of [Slop Cop](https://github.com/awnist/slop-cop)
