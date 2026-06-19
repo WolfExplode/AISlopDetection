@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: command === 'build' ? '/slop-cop/' : '/',
+  base: '/',
   resolve: {
     alias: {
       // Bypass compromise's exports map to import individual three-tier plugins.
