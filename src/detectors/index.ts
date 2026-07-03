@@ -61,6 +61,8 @@ import {
   detectSlopWords,
   detectSycophanticPhrases,
   detectSycophanticWords,
+  detectProfessionalDisclaimer,
+  detectEarnedClaim,
 } from './wordPatterns'
 
 export function runClientDetectors(text: string): Violation[] {
@@ -118,6 +120,8 @@ export function runClientDetectors(text: string): Violation[] {
     ...detectFictionBodyLanguage(text),
     ...detectSycophanticPhrases(text),
     ...detectSycophanticWords(text),
+    ...detectProfessionalDisclaimer(text),
+    ...detectEarnedClaim(text),
     ...detectVerbIntensifierForms(text),
     ...detectTripleFragment(text),
     ...detectTripleConstruction(text),

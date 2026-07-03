@@ -46,6 +46,8 @@ import {
   detectSycophanticWords,
   detectScareQuotes,
   detectInlineEmphasis,
+  detectProfessionalDisclaimer,
+  detectEarnedClaim,
 } from '../wordPatterns'
 
 // Helper: assert at least one violation of the given rule exists
@@ -564,6 +566,9 @@ describe('detectMetaphorCrutch (spec examples)', () => {
   it('flags "thread the needle"', () => {
     assertFires(detectMetaphorCrutch('The policy needs to thread the needle between growth and safety.'), 'metaphor-crutch')
   })
+  it('flags "hit the nail on the head"', () => {
+    assertFires(detectMetaphorCrutch('You hit the nail on the head with that observation.'), 'metaphor-crutch')
+  })
 })
 
 // ── Listicle Instinct ──────────────────────────────────────────────────────
@@ -699,6 +704,12 @@ describe('detectHeresTheKicker', () => {
   })
   it('does NOT flag an ordinary sentence', () => {
     assertSilent(detectHeresTheKicker('The meeting starts at noon.'), 'heres-the-kicker')
+  })
+  it('flags "the crux of it"', () => {
+    assertFires(detectHeresTheKicker('The crux of it is that nobody agreed on scope.'), 'heres-the-kicker')
+  })
+  it('flags "the crux of the matter"', () => {
+    assertFires(detectHeresTheKicker('The crux of the matter is timing.'), 'heres-the-kicker')
   })
 })
 
@@ -949,6 +960,43 @@ describe('detectRealityClaim', () => {
   })
   it('does NOT flag "The real problem is funding"', () => {
     assertSilent(detectRealityClaim('The real problem is funding.'), 'reality-claim')
+  })
+})
+
+// ── Professional Disclaimer ─────────────────────────────────────────────────
+
+describe('detectProfessionalDisclaimer', () => {
+  it('flags "I am an AI, not a doctor"', () => {
+    assertFires(detectProfessionalDisclaimer('Disclaimer: I am an AI, not a doctor.'), 'professional-disclaimer')
+  })
+  it("flags \"I'm an AI, not a lawyer\"", () => {
+    assertFires(detectProfessionalDisclaimer("I'm an AI, not a lawyer, so verify this with counsel."), 'professional-disclaimer')
+  })
+  it('flags "not medical advice"', () => {
+    assertFires(detectProfessionalDisclaimer('This is general physiological information, not medical advice.'), 'professional-disclaimer')
+  })
+  it('flags "not legal advice"', () => {
+    assertFires(detectProfessionalDisclaimer('This is not legal advice.'), 'professional-disclaimer')
+  })
+  it('does NOT flag an ordinary sentence', () => {
+    assertSilent(detectProfessionalDisclaimer('The doctor reviewed the chart before the appointment.'), 'professional-disclaimer')
+  })
+})
+
+// ── Earned Claim ─────────────────────────────────────────────────────────────
+
+describe('detectEarnedClaim', () => {
+  it('flags "the achievement was earned"', () => {
+    assertFires(detectEarnedClaim('The achievement was earned, not given.'), 'earned-claim')
+  })
+  it('flags "this recognition is truly earned"', () => {
+    assertFires(detectEarnedClaim('This recognition is truly earned.'), 'earned-claim')
+  })
+  it('flags "their victory has been earned"', () => {
+    assertFires(detectEarnedClaim('Their victory has been earned.'), 'earned-claim')
+  })
+  it('does NOT flag an ordinary sentence', () => {
+    assertSilent(detectEarnedClaim('She earned her degree after four years of night classes.'), 'earned-claim')
   })
 })
 

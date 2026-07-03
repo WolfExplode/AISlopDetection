@@ -37,6 +37,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   // ── Definitive artifacts — a human almost never produces these ──────────────
   'chatbot-artifact':         { ruleWeight: 5.0, scoringMode: 'linear',      freeRate: 0 },
   'knowledge-cutoff-disclaimer': { ruleWeight: 5.0, scoringMode: 'linear',   freeRate: 0 },
+  'professional-disclaimer':  { ruleWeight: 5.0, scoringMode: 'linear',      freeRate: 0 },
 
   // ── Sentence structure ──────────────────────────────────────────────────────
   'negation-pivot':           { ruleWeight: 4.0, scoringMode: 'linear',      freeRate: 0 },
@@ -103,6 +104,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'dramatic-fragment':        { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
   'paired-negation':          { ruleWeight: 2.2, scoringMode: 'threshold',   freeRate: 0.5 },
   'reality-claim':            { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
+  'earned-claim':             { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
 }
 
 // vital, robust, dynamic, fundamental moved to NLP layer (context-sensitive)
@@ -364,6 +366,7 @@ export const METAPHOR_CRUTCHES: Record<string, number> = {
   'paint a picture':             0.65,
   'move the goalposts':          0.70,
   "in the driver's seat":        0.65,
+  'hit the nail on the head':    0.70,
   'thread the needle':           0.65,
   'drill down':                  0.70,
   'tapestry of':                 0.70,
@@ -930,6 +933,8 @@ export const HERES_THE_KICKER_PHRASES: string[] = [
   "here's where it gets interesting",
   "here's what most people miss",
   "here's the real",
+  "the crux of it",
+  "the crux of the matter",
 ]
 
 export const PEDAGOGICAL_PHRASES: string[] = [

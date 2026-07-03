@@ -978,6 +978,32 @@ export function detectKnowledgeCutoffDisclaimer(text: string): Violation[] {
   return violations
 }
 
+// ── Professional disclaimers ──────────────────────────────────────────────────
+// AI disclaiming its own non-professional status before answering: "I am an AI,
+// not a doctor," "this is not medical advice." A human writing in their own
+// voice doesn't caveat their identity this way.
+
+export function detectProfessionalDisclaimer(text: string): Violation[] {
+  const violations: Violation[] = []
+  violations.push(...findAll(text,
+    /\bi(?:['’]m| am)\s+an\s+ai,?\s+not\s+a\s+(?:doctor|lawyer|therapist|physician|attorney|accountant|financial\s+advisor|nutritionist|psychologist|licensed\s+\w+)\b/gi,
+    'professional-disclaimer'))
+  violations.push(...findAll(text,
+    /\b(?:this\s+is\s+)?(?:not|isn['’]t)\s+(?:medical|legal|financial|professional|psychiatric|clinical)\s+advice\b/gi,
+    'professional-disclaimer'))
+  return violations
+}
+
+// ── Earned claims ─────────────────────────────────────────────────────────────
+// Bare assertion of legitimacy for an outcome ("was earned", "is earned")
+// without demonstrating how — asserting deservingness rather than showing it.
+
+export function detectEarnedClaim(text: string): Violation[] {
+  return findAll(text,
+    /\b(?:the|this|that|his|her|their|its)\s+\w+(?:\s+\w+)?\s+(?:was|is|were|are|has\s+been|have\s+been)\s+(?:truly\s+|genuinely\s+|rightfully\s+|richly\s+|hard[- ]?)?earned\b/gi,
+    'earned-claim')
+}
+
 // ── Inline Emphasis Spam ──────────────────────────────────────────────────────
 // Flags **bold** and *italic* spans used mid-sentence in prose — a formatting
 // tic LLMs use to make arbitrary phrases seem important.

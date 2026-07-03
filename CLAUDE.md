@@ -59,9 +59,9 @@ Each rule in `src/rules.ts` has:
 
 ## Rules count
 
-- **Client-side rules:** 36
+- **Client-side rules:** 38
 - **LLM-required rules:** 12 (9 sentence-level + 3 document-level)
-- **Total:** 48
+- **Total:** 50
 
 ## Adding a new rule
 
