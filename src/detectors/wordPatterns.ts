@@ -1099,11 +1099,26 @@ export function detectFalseRange(text: string): Violation[] {
 }
 
 // \u2500\u2500 Stacked intensifiers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-// Evaluative praise adjectives and certainty amplifiers that are individually
-// borderline but strongly signal AI sycophantic amplification when 3+ appear
-// within a 3-sentence window.
+// Evaluative praise adjectives, certainty adverbs, register/degree intensifiers,
+// and intensifier phrases — individually borderline but strongly signal AI
+// amplification (sycophantic or dramatic) when 3+ appear within a 3-sentence
+// window. Merged from multiple word pools; later spreads win on key overlap
+// so EVALUATIVE_INTENSIFIERS' hand-tuned weights take priority.
+const STACKED_WORD_WEIGHTS: Record<string, number> = {
+  ...INTENSIFIERS,
+  ...FILLER_ADVERBS,
+  ...ADJECTIVE_INTENSIFIERS,
+  ...EVALUATIVE_INTENSIFIERS,
+}
+const STACKED_WORD_RE = new RegExp(`\\b(${Object.keys(STACKED_WORD_WEIGHTS).join('|')})s?(?:-\\w+)*\\b`, 'gi')
 
-const EVALUATIVE_RE = new RegExp(`\\b(${Object.keys(EVALUATIVE_INTENSIFIERS).join('|')})\\b`, 'gi')
+const STACKED_PHRASE_WEIGHTS = INTENSIFIER_PHRASES
+const STACKED_PHRASE_RE = new RegExp(
+  `\\b(${Object.keys(STACKED_PHRASE_WEIGHTS)
+    .map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|')})\\b`,
+  'gi',
+)
 
 export function detectStackedIntensifiers(text: string): Violation[] {
   const violations: Violation[] = []
@@ -1121,16 +1136,36 @@ export function detectStackedIntensifiers(text: string): Violation[] {
       off += s.length
     }
 
-    // Find all individual word matches per sentence: {word, offsetInPara}
-    type Hit = { word: string; offsetInPara: number; length: number }
+    // Find all word + phrase intensifier matches per sentence: {word, offsetInPara}
+    type Hit = { word: string; offsetInPara: number; length: number; weight: number }
     const hitsPerSentence: Hit[][] = sentences.map((s, si) => {
-      const hits: Hit[] = []
-      const re = new RegExp(EVALUATIVE_RE.source, 'gi')
+      const byOffset = new Map<number, Hit>()
+
+      const wordRe = new RegExp(STACKED_WORD_RE.source, 'gi')
       let m: RegExpExecArray | null
-      while ((m = re.exec(s)) !== null) {
-        hits.push({ word: m[0].toLowerCase(), offsetInPara: sentenceOffsets[si] + m.index, length: m[0].length })
+      while ((m = wordRe.exec(s)) !== null) {
+        const offsetInPara = sentenceOffsets[si] + m.index
+        byOffset.set(offsetInPara, {
+          word: m[0].toLowerCase(),
+          offsetInPara,
+          length: m[0].length,
+          weight: STACKED_WORD_WEIGHTS[m[1].toLowerCase()] ?? 0.50,
+        })
       }
-      return hits
+
+      const phraseRe = new RegExp(STACKED_PHRASE_RE.source, 'gi')
+      while ((m = phraseRe.exec(s)) !== null) {
+        const offsetInPara = sentenceOffsets[si] + m.index
+        if (byOffset.has(offsetInPara)) continue
+        byOffset.set(offsetInPara, {
+          word: m[0].toLowerCase(),
+          offsetInPara,
+          length: m[0].length,
+          weight: STACKED_PHRASE_WEIGHTS[m[0].toLowerCase()] ?? 0.50,
+        })
+      }
+
+      return [...byOffset.values()].sort((a, b) => a.offsetInPara - b.offsetInPara)
     })
 
     // Sliding window: when a window hits threshold, flag each word individually
@@ -1144,7 +1179,7 @@ export function detectStackedIntensifiers(text: string): Violation[] {
 
       if (windowHits.length >= THRESHOLD) {
         const unique = [...new Set(windowHits.map(h => h.word))]
-        const explanation = `Stacked with ${windowHits.length} evaluative intensifiers: ${unique.slice(0, 4).join(', ')}`
+        const explanation = `Stacked with ${windowHits.length} intensifiers: ${unique.slice(0, 4).join(', ')}`
         const groupKey = `stacked-${para.start}-${clusterIndex++}`
         for (const hit of windowHits) {
           if (!flaggedOffsets.has(hit.offsetInPara)) {
@@ -1155,7 +1190,7 @@ export function detectStackedIntensifiers(text: string): Violation[] {
               startIndex: para.start + hit.offsetInPara,
               endIndex: para.start + hit.offsetInPara + hit.length,
               matchedText: text.slice(para.start + hit.offsetInPara, para.start + hit.offsetInPara + hit.length),
-              instanceWeight: EVALUATIVE_INTENSIFIERS[hit.word] ?? 0.50,
+              instanceWeight: hit.weight,
               explanation,
             })
           }

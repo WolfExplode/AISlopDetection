@@ -164,6 +164,7 @@ export const INTENSIFIERS: Record<string, number> = {
   'meaningful':     0.42,
   'renowned':       0.65,
   'nestled':        0.88,
+  'skyrocket':      0.55,
 }
 
 // Multi-word phrases that are overused LLM clichés
@@ -177,6 +178,8 @@ export const INTENSIFIER_PHRASES: Record<string, number> = {
   'diverse array':     0.82,
   'rich history':      0.72,
   'rich tradition':    0.72,
+  'almost instantly':  0.55,
+  'almost immediately': 0.55,
 }
 
 // Adjective intensifiers moved to NLP layer: flagged only in predicate position
