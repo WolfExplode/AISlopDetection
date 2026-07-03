@@ -11,19 +11,24 @@ This repo is a combination of many slop detection tools. Built off the backbone 
 ![Screenshot](screenshot.png)
 
 ## What is "Slop"? 
-
+'Slop' is uniquely human. It's definition is entirely subjective. 
 Just use the tool and find out. You know it when you see it. Unless... you are a filthy [clanker](https://en.wikipedia.org/wiki/Clanker). Slop is the lack of humanity in the text. 
 
 "Slop" is the way things are phrased. It just sounds like AI.
 
+Think of the AI image generators that seem to push every detail a bit too far? the idea that images come out as "deep fried" or superreal. extra contrast. extra saturated etc. well, that's image slop. Text slop is analogous to that idea. Overly sycophantic, overly dramatic, overly protective, repeated warnings, reassurance, etc.
+
+Things that are done with low effort are inherently slop. Decisions made quickly, things done without consideration of the larger picture.
+
 
 ## Incorrect definitions of slop:
-- "AI slop" is the kind of text that's fluent, grammatical, and confidently structured—but hollow. It reads fine sentence by sentence and says almost nothing when you step back.
-    While this is correct, it doesn't quite describe the essence of slop.
-- 
+""AI slop" is the kind of text that's fluent, grammatical, and confidently structured—but hollow. It reads fine sentence by sentence and says almost nothing when you step back."
 
+While this is correct, it doesn't quite describe the essence of slop.
 
+""AI slop" is any text an AI wrote."
 
+Wrong. Plenty of AI output is restrained and reads fine. Slop is a quality problem, not an authorship problem (see "What is the use case for Slop Cop?" below).
 
 
 ## Why would we want to detect slop?
