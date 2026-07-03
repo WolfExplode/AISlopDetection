@@ -78,6 +78,9 @@ export default function App() {
   textRef.current = text
   const violationsRef = useRef<Violation[]>([])
   const lastAnalyzedTextRef = useRef<string>(isDefaultText ? SAMPLE_TEXT : '')
+  // Bumped only when text is written programmatically (apply-suggestion), so the
+  // editor's doc-sync effect never races against its own keystroke echoes.
+  const [syncNonce, setSyncNonce] = useState(0)
 
   // Paragraph rewrite state
   const [hoveredPara, setHoveredPara] = useState<{
@@ -228,6 +231,7 @@ export default function App() {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setClientViolations(newText.trim() ? runClientDetectors(newText) : [])
     setText(newText)
+    setSyncNonce(n => n + 1)
     setPopover(null)
     setLlmStatus(s => (s === 'done' || s === 'error') ? 'stale' : s)
   }, [])
@@ -654,6 +658,7 @@ export default function App() {
 
             <MarkdownLiveEditor
               initialText={text}
+              syncNonce={syncNonce}
               violations={allViolations}
               activeRules={activeRules}
               dark={darkMode}

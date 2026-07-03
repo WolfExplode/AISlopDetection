@@ -17,6 +17,9 @@ interface ViolationClickInfo {
 
 interface Props {
   initialText: string
+  // Bump only when initialText is written programmatically (apply-suggestion,
+  // hash restore) — NOT on every keystroke echo. See syncNonce effect below.
+  syncNonce: number
   violations: Violation[]
   activeRules: Set<string>
   dark: boolean
@@ -27,6 +30,7 @@ interface Props {
 
 export default function MarkdownLiveEditor({
   initialText,
+  syncNonce,
   violations,
   activeRules,
   dark,
@@ -39,7 +43,10 @@ export default function MarkdownLiveEditor({
   const onChangeRef = useRef(onChange)
   const onViolationClickRef = useRef(onViolationClick)
   const textRef = useRef(initialText)
+  const initialTextRef = useRef(initialText)
   const themeCompartmentRef = useRef(new Compartment())
+
+  initialTextRef.current = initialText
 
   onChangeRef.current = onChange
   onViolationClickRef.current = onViolationClick
@@ -117,13 +124,15 @@ export default function MarkdownLiveEditor({
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
+    const text = initialTextRef.current
     const current = view.state.doc.toString()
-    if (current === initialText) return
-    textRef.current = initialText
+    if (current === text) return
+    textRef.current = text
     view.dispatch({
-      changes: { from: 0, to: current.length, insert: initialText },
+      changes: { from: 0, to: current.length, insert: text },
     })
-  }, [initialText])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncNonce])
 
   return (
     <div
