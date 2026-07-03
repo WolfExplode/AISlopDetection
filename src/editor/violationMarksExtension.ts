@@ -78,14 +78,21 @@ export const violationMarksField = StateField.define<DecorationSet>({
     return Decoration.none
   },
   update(marks, tr) {
-    marks = marks.map(tr.changes)
     for (const effect of tr.effects) {
       if (effect.is(setViolationsEffect)) {
         const { violations, activeRules } = effect.value
-        marks = buildViolationDecorations(violations, activeRules)
+        return buildViolationDecorations(violations, activeRules)
       }
     }
-    return marks
+    // A full-doc replace (e.g. select-all + paste of identical text) can wipe
+    // mapped decorations even when no setViolationsEffect follows (onChange is
+    // skipped upstream because the text didn't actually change). Rebuild from
+    // the stored violations state so marks survive doc changes either way.
+    if (tr.docChanged) {
+      const { violations, activeRules } = tr.state.field(violationsDataField)
+      return buildViolationDecorations(violations, activeRules)
+    }
+    return marks.map(tr.changes)
   },
   provide: f => EditorView.decorations.from(f),
 })

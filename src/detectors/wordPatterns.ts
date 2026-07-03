@@ -832,9 +832,9 @@ export function detectPairedNegation(text: string): Violation[] {
 }
 
 export function detectRealityClaim(text: string): Violation[] {
-  // "The gap is real", "they are legitimate", "this cannot be dismissed", "this actually matters"
+  // "The gap is real", "they are legitimate", "this cannot be dismissed", "this actually matters", "the response was real"
   return findAll(text,
-    /\b(?:(?:the|a|an)\s+\w+|(?:this|that|these|those)(?:\s+\w+)?|it|they)\s+(?:(?:is|are)\s+(?:(?:very|truly|genuinely|so)\s+)?(?:real|undeniable|significant|legitimate|genuine|tangible|palpable|profound|urgent)|cannot\s+be\s+(?:ignored|overstated|denied|understated|dismissed|overlooked|minimized|trivialized)|(?:actually\s+|truly\s+|deeply\s+)?matters)\b/gi,
+    /\b(?:(?:the|a|an)\s+(?:\w+\s+){0,2}\w+|(?:this|that|these|those)(?:\s+\w+)?|it|they)\s+(?:(?:is|are|was|were)\s+(?:(?:very|truly|genuinely|so)\s+)?(?:real|undeniable|significant|legitimate|genuine|tangible|palpable|profound|urgent)|cannot\s+be\s+(?:ignored|overstated|denied|understated|dismissed|overlooked|minimized|trivialized)|(?:actually\s+|truly\s+|deeply\s+)?matters)\b/gi,
     'reality-claim')
 }
 
