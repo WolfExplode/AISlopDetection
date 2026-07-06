@@ -38,6 +38,13 @@ Wrong. Plenty of AI output is restrained and reads fine. Slop is a quality probl
 The AI tends to overclarify. 
 
 
+## Known issues with current detection algorithm
+English only. Because I only speak english. I can't help you find slop in a different language sorry. 
+
+Vocabulary drift. The n-gram lists (SLOP_TRIGRAMS/SLOP_BIGRAMS, the eqbench word lists) are frozen snapshots of specific model generations (Paech et al. 2025). As models get RLHF'd away from "delve" and "tapestry," these lists decay silently. Newer models (including the current Claude/GPT generation) already exhibit noticeably different tics.
+
+What may cause reader fatigue now, may not be true in 10 years time. Therefore, this codebase cannot account for the evolution of slop.
+
 
 
 
