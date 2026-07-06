@@ -376,33 +376,39 @@ export function detectQuestionThenAnswer(text: string): Violation[] {
 }
 
 
+// Word-boundary anchored hedge matchers, compiled once. Boundaries stop
+// substring false positives: "possibly" inside "impossibly", "sort of"
+// inside "the resort offers".
+const HEDGE_MATCHERS: Array<{ term: string; re: RegExp; weight: number }> = [
+  ...Object.entries(HEDGE_WORDS),
+  ...Object.entries(MODAL_HEDGE_WEIGHTS),
+].map(([term, weight]) => ({
+  term,
+  re: new RegExp(`\\b${term.replace(/\s+/g, '\\s+')}\\b`, 'i'),
+  weight,
+}))
+
 // Detect hedge stacks: sentences with 2+ hedge words
 export function detectHedgeStack(text: string): Violation[] {
-  const sentences = splitSentences(text)
   const violations: Violation[] = []
-  let offset = 0
 
-  for (const sentence of sentences) {
-    const lower = sentence.toLowerCase()
-    const found: string[] = []
-    for (const hedge of Object.keys(HEDGE_WORDS)) {
-      if (lower.includes(hedge)) found.push(hedge)
+  for (const para of splitParagraphs(text)) {
+    let offset = para.start
+    for (const sentence of splitSentences(para.text)) {
+      const found = HEDGE_MATCHERS.filter(h => h.re.test(sentence))
+      if (found.length >= 2) {
+        const totalW = found.reduce((sum, h) => sum + h.weight, 0)
+        violations.push({
+          ruleId: 'hedge-stack',
+          startIndex: offset,
+          endIndex: offset + sentence.length,
+          matchedText: sentence,
+          instanceWeight: totalW / found.length,
+          explanation: `Contains ${found.length} hedges: ${found.slice(0, 4).map(h => h.term).join(', ')}`,
+        })
+      }
+      offset += sentence.length
     }
-    for (const m of Object.keys(MODAL_HEDGE_WEIGHTS)) {
-      if (new RegExp(`\\b${m}\\b`).test(lower)) found.push(m)
-    }
-    if (found.length >= 2) {
-      const totalW = found.reduce((sum, h) => sum + (HEDGE_WORDS[h] ?? MODAL_HEDGE_WEIGHTS[h] ?? 0.5), 0)
-      violations.push({
-        ruleId: 'hedge-stack',
-        startIndex: offset,
-        endIndex: offset + sentence.length,
-        matchedText: sentence,
-        instanceWeight: totalW / found.length,
-        explanation: `Contains ${found.length} hedges: ${found.slice(0, 4).join(', ')}`,
-      })
-    }
-    offset += sentence.length
   }
   return violations
 }
@@ -422,11 +428,19 @@ export function detectStaccatoBurst(text: string): Violation[] {
     }
 
     const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
+    // A run member must read as a real sentence: 1–8 words ending in terminal
+    // punctuation (paragraph-final sentences are exempt — the writer may still
+    // be typing). Newline-split list/heading lines never join a staccato run.
+    const isShort = (idx: number) => {
+      const wc = wordCount(sentences[idx])
+      if (wc < 1 || wc > 8) return false
+      return /[.!?]["'”’)]*$/.test(sentences[idx].trim()) || idx === sentences.length - 1
+    }
     let i = 0
     while (i < sentences.length) {
-      if (wordCount(sentences[i]) <= 8) {
+      if (isShort(i)) {
         let j = i + 1
-        while (j < sentences.length && wordCount(sentences[j]) <= 8) j++
+        while (j < sentences.length && isShort(j)) j++
         if (j - i >= 3) {
           const start = offsets[i]
           const end = offsets[j - 1] + sentences[j - 1].length
@@ -514,18 +528,40 @@ export function splitParagraphs(text: string): Array<{ text: string; start: numb
   return results
 }
 
+// Words whose trailing period is an abbreviation, not a sentence boundary.
+const SENTENCE_ABBREVIATIONS = new Set([
+  'dr', 'mr', 'mrs', 'ms', 'prof', 'rev', 'gen', 'sen', 'rep', 'st', 'mt', 'sr', 'jr',
+  'vs', 'etc', 'e.g', 'i.e', 'cf', 'al', 'fig', 'vol', 'ch', 'pp', 'ca', 'approx',
+  'dept', 'inc', 'ltd', 'co', 'corp', 'u.s', 'u.k', 'u.n', 'a.m', 'p.m', 'ph.d',
+])
+
 function splitSentences(text: string): string[] {
-  // Simple sentence splitter - preserves whitespace/punctuation
+  // Sentence splitter: breaks after terminal punctuation + space, and at newlines
+  // so headings and list lines are their own units, never glued to the next line.
+  // Callers must pass a single paragraph (splitParagraphs first) — sentence-pair
+  // detectors must never pair across \n\n boundaries.
+  // Slices are contiguous: consumers compute offsets by summing lengths, so
+  // whitespace-only slices are merged into the previous sentence, never dropped.
   const results: string[] = []
+  const push = (seg: string) => {
+    if (seg.trim().length === 0 && results.length > 0) results[results.length - 1] += seg
+    else results.push(seg)
+  }
   let last = 0
-  const re = /[.!?]+\s+/g
+  const re = /[.!?]+[ \t]+|\n+/g
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
-    results.push(text.slice(last, m.index + m[0].length))
+    if (m[0][0] !== '\n') {
+      const tail = text.slice(last, m.index).match(/([A-Za-z][A-Za-z.]*)$/)?.[1]
+      // Abbreviations ("Dr.", "e.g.") and single-letter initials ("J. Smith")
+      // do not end a sentence.
+      if (tail && (/^[A-Z]$/.test(tail) || SENTENCE_ABBREVIATIONS.has(tail.toLowerCase()))) continue
+    }
+    push(text.slice(last, m.index + m[0].length))
     last = m.index + m[0].length
   }
-  if (last < text.length) results.push(text.slice(last))
-  return results.filter(s => s.trim().length > 0)
+  if (last < text.length) push(text.slice(last))
+  return results
 }
 
 // ── New detectors ─────────────────────────────────────────────────────────
@@ -537,41 +573,44 @@ export function detectServesAs(text: string): Violation[] {
 
 export function detectNegationCountdown(text: string): Violation[] {
   const violations: Violation[] = []
-  const sentences = splitSentences(text)
-  let offset = 0
-  const offsets: number[] = []
-  for (const s of sentences) { offsets.push(offset); offset += s.length }
+  for (const para of splitParagraphs(text)) {
+    const sentences = splitSentences(para.text)
+    let offset = para.start
+    const offsets: number[] = []
+    for (const s of sentences) { offsets.push(offset); offset += s.length }
 
-  let i = 0
-  while (i < sentences.length) {
-    if (/^\s*not\s+/i.test(sentences[i].trim())) {
-      let j = i + 1
-      while (j < sentences.length && /^\s*not\s+/i.test(sentences[j].trim())) j++
-      if (j - i >= 2) {
-        const start = offsets[i]
-        const end = offsets[j - 1] + sentences[j - 1].length
-        violations.push({ ruleId: 'negation-countdown', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
-        i = j; continue
+    let i = 0
+    while (i < sentences.length) {
+      if (/^\s*not\s+/i.test(sentences[i].trim())) {
+        let j = i + 1
+        while (j < sentences.length && /^\s*not\s+/i.test(sentences[j].trim())) j++
+        if (j - i >= 2) {
+          const start = offsets[i]
+          const end = offsets[j - 1] + sentences[j - 1].length
+          violations.push({ ruleId: 'negation-countdown', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
+          i = j; continue
+        }
       }
+      i++
     }
-    i++
   }
   return violations
 }
 
-// Function words too generic to flag as anaphora — anything else repeated 3+ times is suspicious
+// Function words and personal pronouns too generic to flag as anaphora —
+// anything else repeated 3+ times is suspicious. Pronoun subjects are the
+// default rhythm of narration ("He walked in. He sat down. He waited."),
+// so they never count as single-word openers. Two-word openers have their
+// own skip list, so "they assume … they assume …" still fires.
 const ANAPHORA_SINGLE_WORD_SKIP = new Set([
   'a', 'an', 'the',
   'in', 'on', 'at', 'to', 'of', 'for', 'with', 'by', 'from',
   'is', 'are', 'was', 'were',
+  'i', 'we', 'you', 'he', 'she', 'it', 'they',
 ])
 
 export function detectAnaphoraAbuse(text: string): Violation[] {
   const violations: Violation[] = []
-  const sentences = splitSentences(text)
-  let offset = 0
-  const offsets: number[] = []
-  for (const s of sentences) { offsets.push(offset); offset += s.length }
 
   const CONJUNCTIONS = new Set(['and', 'but', 'or'])
 
@@ -623,46 +662,49 @@ export function detectAnaphoraAbuse(text: string): Violation[] {
     return pos
   }
 
-  function flagRun(i: number, j: number, opener: string, wordCount: number) {
-    const count = j - i
-    for (let k = i; k < j; k++) {
-      const sentStart = offsets[k]
-      const end = sentStart + openerLength(sentences[k], wordCount)
-      violations.push({
-        ruleId: 'anaphora-abuse', startIndex: sentStart, endIndex: end,
-        matchedText: text.slice(sentStart, end),
-        explanation: `"${opener}..." repeated ${count} times`,
-      })
-    }
-  }
+  for (const para of splitParagraphs(text)) {
+    const sentences = splitSentences(para.text)
+    let offset = para.start
+    const offsets: number[] = []
+    for (const s of sentences) { offsets.push(offset); offset += s.length }
 
-  let i = 0
-  while (i < sentences.length) {
-    // Two-word opener (more specific — try first)
-    const two = twoWordOpener(sentences[i])
-    if (two) {
-      let j = i + 1
-      while (j < sentences.length && twoWordOpener(sentences[j]) === two) j++
-      if (j - i >= 3) { flagRun(i, j, two, 2); i = j; continue }
+    const flagRun = (i: number, j: number, opener: string, wordCount: number) => {
+      const count = j - i
+      for (let k = i; k < j; k++) {
+        const sentStart = offsets[k]
+        const end = sentStart + openerLength(sentences[k], wordCount)
+        violations.push({
+          ruleId: 'anaphora-abuse', startIndex: sentStart, endIndex: end,
+          matchedText: text.slice(sentStart, end),
+          explanation: `"${opener}..." repeated ${count} times`,
+        })
+      }
     }
-    // Single-word opener from curated slop-indicative list
-    const one = singleWordOpener(sentences[i])
-    if (one) {
-      let j = i + 1
-      while (j < sentences.length && singleWordOpener(sentences[j]) === one) j++
-      if (j - i >= 3) { flagRun(i, j, one, 1); i = j; continue }
+
+    let i = 0
+    while (i < sentences.length) {
+      // Two-word opener (more specific — try first)
+      const two = twoWordOpener(sentences[i])
+      if (two) {
+        let j = i + 1
+        while (j < sentences.length && twoWordOpener(sentences[j]) === two) j++
+        if (j - i >= 3) { flagRun(i, j, two, 2); i = j; continue }
+      }
+      // Single-word opener not on the generic skip list
+      const one = singleWordOpener(sentences[i])
+      if (one) {
+        let j = i + 1
+        while (j < sentences.length && singleWordOpener(sentences[j]) === one) j++
+        if (j - i >= 3) { flagRun(i, j, one, 1); i = j; continue }
+      }
+      i++
     }
-    i++
   }
   return violations
 }
 
 export function detectGerundLitany(text: string): Violation[] {
   const violations: Violation[] = []
-  const sentences = splitSentences(text)
-  let offset = 0
-  const offsets: number[] = []
-  for (const s of sentences) { offsets.push(offset); offset += s.length }
 
   const isGerund = (s: string) => {
     const trimmed = s.trim()
@@ -670,19 +712,26 @@ export function detectGerundLitany(text: string): Violation[] {
     return words.length <= 8 && /^[A-Z][a-z]+ing\b/.test(trimmed)
   }
 
-  let i = 0
-  while (i < sentences.length) {
-    if (isGerund(sentences[i])) {
-      let j = i + 1
-      while (j < sentences.length && isGerund(sentences[j])) j++
-      if (j - i >= 2) {
-        const start = offsets[i]
-        const end = offsets[j - 1] + sentences[j - 1].length
-        violations.push({ ruleId: 'gerund-fragment-litany', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
-        i = j; continue
+  for (const para of splitParagraphs(text)) {
+    const sentences = splitSentences(para.text)
+    let offset = para.start
+    const offsets: number[] = []
+    for (const s of sentences) { offsets.push(offset); offset += s.length }
+
+    let i = 0
+    while (i < sentences.length) {
+      if (isGerund(sentences[i])) {
+        let j = i + 1
+        while (j < sentences.length && isGerund(sentences[j])) j++
+        if (j - i >= 2) {
+          const start = offsets[i]
+          const end = offsets[j - 1] + sentences[j - 1].length
+          violations.push({ ruleId: 'gerund-fragment-litany', startIndex: start, endIndex: end, matchedText: text.slice(start, end) })
+          i = j; continue
+        }
       }
+      i++
     }
-    i++
   }
   return violations
 }

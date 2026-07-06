@@ -499,6 +499,15 @@ describe('detectHedgeStack', () => {
   it('does NOT flag "would" as a hedge (conditional use)', () => {
     assertSilent(detectHedgeStack('That would be a significant improvement to the system.'), 'hedge-stack')
   })
+  it('does NOT match hedges inside larger words ("impossibly" is not "possibly")', () => {
+    assertSilent(detectHedgeStack('Impossibly, this might work.'), 'hedge-stack')
+  })
+  it('does NOT match "sort of" inside "resort offers"', () => {
+    assertSilent(detectHedgeStack('The resort offers perhaps the best view in town.'), 'hedge-stack')
+  })
+  it('does NOT stack hedges across a paragraph boundary', () => {
+    assertSilent(detectHedgeStack('This might work\n\nPerhaps it will rain'), 'hedge-stack')
+  })
 })
 
 // ── Staccato Burst ─────────────────────────────────────────────────────────
@@ -518,6 +527,12 @@ describe('detectStaccatoBurst', () => {
   })
   it('does NOT flag long sentences', () => {
     assertSilent(detectStaccatoBurst('Artificial intelligence is fundamentally reshaping how we think about knowledge. The implications for education, work, and human creativity are profound and far-reaching.'), 'staccato-burst')
+  })
+  it('does NOT split on abbreviations (Dr., Prof.) into a fake burst', () => {
+    assertSilent(detectStaccatoBurst('The report cites Dr. Smith and Prof. Jones extensively today.'), 'staccato-burst')
+  })
+  it('does NOT count unpunctuated list lines toward a burst', () => {
+    assertSilent(detectStaccatoBurst('Fast setup\nEasy configuration\nGreat documentation\nLow cost.'), 'staccato-burst')
   })
 })
 
@@ -628,6 +643,9 @@ describe('detectNegationCountdown', () => {
   it('does NOT flag a single "Not" sentence', () => {
     assertSilent(detectNegationCountdown('Not everything is as it seems. The data tells a different story.'), 'negation-countdown')
   })
+  it('does NOT pair "Not" sentences across a paragraph boundary', () => {
+    assertSilent(detectNegationCountdown('Not a bug.\n\nNot a feature.'), 'negation-countdown')
+  })
 })
 
 // ── Anaphora Abuse ─────────────────────────────────────────────────────────
@@ -656,7 +674,7 @@ describe('detectAnaphoraAbuse', () => {
   })
   it('flags any non-function-word repeated opener (people, his, this)', () => {
     assertFires(detectAnaphoraAbuse('People often forget. People make mistakes. People learn slowly.'), 'anaphora-abuse')
-    assertFires(detectAnaphoraAbuse('His argument was X. His evidence was Y. His conclusion was Z.'), 'anaphora-abuse')
+    assertFires(detectAnaphoraAbuse('His argument was weak. His evidence was thin. His conclusion was wrong.'), 'anaphora-abuse')
     assertFires(detectAnaphoraAbuse('This is foo. This is bar. And this is baz.'), 'anaphora-abuse')
   })
   it('does NOT flag articles or prepositions', () => {
@@ -667,6 +685,13 @@ describe('detectAnaphoraAbuse', () => {
   })
   it('treats "And {two words}" as matching the base two-word opener', () => {
     assertFires(detectAnaphoraAbuse('They assume the worst. They assume silence means guilt. And they assume nothing will change.'), 'anaphora-abuse')
+  })
+  it('does NOT flag repeated pronoun subjects (ordinary narration)', () => {
+    assertSilent(detectAnaphoraAbuse('He walked in. He sat down. He waited for an hour.'), 'anaphora-abuse')
+    assertSilent(detectAnaphoraAbuse('They tried hard. They failed twice. They started over again.'), 'anaphora-abuse')
+  })
+  it('does NOT count opener runs across a paragraph boundary', () => {
+    assertSilent(detectAnaphoraAbuse('Every step counts. Every step matters.\n\nEvery step defines us.'), 'anaphora-abuse')
   })
 })
 
@@ -684,6 +709,9 @@ describe('detectGerundLitany', () => {
   })
   it('does NOT flag a long gerund sentence (>8 words)', () => {
     assertSilent(detectGerundLitany('Building a product that users actually love and return to is hard.'), 'gerund-fragment-litany')
+  })
+  it('does NOT pair gerund sentences across a paragraph boundary', () => {
+    assertSilent(detectGerundLitany('Building quickly.\n\nShipping often.'), 'gerund-fragment-litany')
   })
 })
 
