@@ -8,7 +8,7 @@ Web app that detects LLM-generated prose patterns in text and highlights them wi
 - **pnpm** — use pnpm for all package operations, never npm or yarn
 - `pnpm dev` — dev server on localhost:5173
 - `pnpm build` — type-check + build to `dist/`
-- `pnpm test` — Vitest unit tests (477 tests, all client-side detectors)
+- `pnpm test` — Vitest unit tests (498 tests, all client-side detectors)
 
 ## Architecture
 
@@ -76,11 +76,13 @@ Each rule in `src/rules.ts` has:
 - **`concept-label`**: Matches any `[word] + (paradox|trap|creep|vacuum|inversion|chasm)` — will flag real established terms. Accept these FPs; the rule targets LLM prose inflation.
 - **`superficial-analysis`**: The `, [participle] its/the/their/this [noun]` pattern can occasionally match legitimate summarizing phrases. `canRemove: true` lets users dismiss easily.
 - **`triple-construction`**: Named-entity appositives are suppressed via a `#ProperNoun` check ("Dave Burwick, former CEO of Boston Beer, and Frank Luntz" does not fire). Common-noun appositives ("Fermentation, a necessary step in brewing, and aging…") remain false positives — every surface heuristic (article presence, item length) has clear counterexamples, and fixing them requires semantic understanding beyond compromise/two.
+- **`false-range` client branches**: "everything/everyone/anything/anyone from X to Y" caps endpoints at 3 words and skips matches containing digits, but a movement sentence shaped like "everyone from interns went on to management" can still fire. "Xs and Ys alike" requires a plural-looking word (trailing single `s`, >3 chars) on one side to exclude the "similarly" sense ("look and act alike"), so plural-less flourishes ("young and old alike") are intentionally missed and s-ending verbs can rarely slip through. Bare "from X to Y" stays LLM-tier only — too ambiguous for regex.
+- **`unicode-decoration`**: Any `\p{Extended_Pictographic}` run fires (©/®/™ excluded). A human deliberately using an emoji in casual prose is flagged the same as chatbot decoration — accepted; the rule targets prose, not chat messages.
 
 ## Key constraints on detectors
 
 - **Paragraph boundaries matter.** Detectors that operate on sentence pairs must use `splitParagraphs()` first, then split by sentence within each paragraph. Never pair sentences across `\n\n` boundaries.
-- **Q→A: answer must be short.** The question-then-answer detector requires the answer sentence to be ≤120 chars.
+- **Q→A: answer must be short, and dialogue never fires.** The question-then-answer detector requires the answer sentence to be ≤120 chars, and skips pairs where either sentence contains a double quote or opens with any quote character (quoted questions/answers are speech, not the rhetorical tell).
 - **Modal verbs `should`/`would` are not hedges.** Only `might`, `could`, `may` count as hedging modals in the hedge stack detector.
 - **"Kind of" as classifier is not a hedge.** "a kind of X" is precise categorization. Only match in filler positions.
 - **Unicode apostrophes.** User text from contenteditable uses curly quotes (`'` U+2019). Any regex matching contractions must use `[\u2019']` not just `'`. Verified via byte inspection — `['']` written in source looks identical but may contain two straight quotes if editor normalizes them.

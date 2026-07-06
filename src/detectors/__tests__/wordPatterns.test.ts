@@ -30,7 +30,7 @@ import {
   detectListicleTrenchCoat,
   detectVagueAttribution,
   detectBoldFirstBullets,
-  detectUnicodeArrows,
+  detectUnicodeDecoration,
   detectDespiteChallenges,
   detectConceptLabel,
   detectDramaticFragment,
@@ -472,6 +472,25 @@ describe('detectQuestionThenAnswer', () => {
     const text = 'The building codes governing this type of construction were written before composite materials became commercially viable at scale.'
     assertSilent(detectQuestionThenAnswer(text), 'question-then-answer')
   })
+  it('does NOT flag quoted dialogue (straight double quotes)', () => {
+    const text = '"Where were you last night?" "Out with friends," she said.'
+    assertSilent(detectQuestionThenAnswer(text), 'question-then-answer')
+  })
+  it('does NOT flag quoted dialogue (curly double quotes)', () => {
+    const text = '“Why does this matter?” “It shapes every decision we make.”'
+    assertSilent(detectQuestionThenAnswer(text), 'question-then-answer')
+  })
+  it('does NOT flag single-quoted dialogue', () => {
+    const text = '‘Where were you?’ ‘Out.’ He shrugged and turned away from her.'
+    assertSilent(detectQuestionThenAnswer(text), 'question-then-answer')
+  })
+  it('does NOT flag a question attributed to a speaker with a quoted answer', () => {
+    const text = 'She leaned in and asked, "What does this mean?" It means we must adapt.'
+    assertSilent(detectQuestionThenAnswer(text), 'question-then-answer')
+  })
+  it('still flags unquoted rhetorical Q then A after a dialogue fix', () => {
+    assertFires(detectQuestionThenAnswer('What does this mean? It means we must adapt.'), 'question-then-answer')
+  })
 })
 
 // ── Hedge Stack ────────────────────────────────────────────────────────────
@@ -840,16 +859,46 @@ describe('detectBoldFirstBullets', () => {
 
 // ── Unicode Arrows ─────────────────────────────────────────────────────────
 
-describe('detectUnicodeArrows', () => {
+describe('detectUnicodeDecoration', () => {
   it('flags the → character', () => {
-    assertFires(detectUnicodeArrows('Input → Output'), 'unicode-decoration')
+    assertFires(detectUnicodeDecoration('Input → Output'), 'unicode-decoration')
   })
   it('flags multiple arrows', () => {
-    const v = detectUnicodeArrows('Step 1 → Step 2 → Step 3')
+    const v = detectUnicodeDecoration('Step 1 → Step 2 → Step 3')
     expect(v.filter(x => x.ruleId === 'unicode-decoration').length).toBeGreaterThanOrEqual(2)
   })
   it('does NOT flag ASCII arrow "->"', () => {
-    assertSilent(detectUnicodeArrows('Input -> Output'), 'unicode-decoration')
+    assertSilent(detectUnicodeDecoration('Input -> Output'), 'unicode-decoration')
+  })
+  it('flags the double arrow and pointer glyphs', () => {
+    assertFires(detectUnicodeDecoration('Input ⇒ Output'), 'unicode-decoration')
+    assertFires(detectUnicodeDecoration('▸ First point'), 'unicode-decoration')
+  })
+  it('flags checkmark and cross emoji', () => {
+    assertFires(detectUnicodeDecoration('✅ Fast and reliable'), 'unicode-decoration')
+    assertFires(detectUnicodeDecoration('❌ No setup required'), 'unicode-decoration')
+  })
+  it('flags decorative emoji in prose', () => {
+    assertFires(detectUnicodeDecoration('Our team is thrilled \u{1F680} to announce this feature.'), 'unicode-decoration')
+    assertFires(detectUnicodeDecoration('✨ Introducing the all-new dashboard ✨'), 'unicode-decoration')
+  })
+  it('merges an emoji run into a single violation span', () => {
+    const v = detectUnicodeDecoration('Big news \u{1F389}\u{1F680}✨ today.')
+    const emoji = v.filter(x => x.ruleId === 'unicode-decoration')
+    expect(emoji).toHaveLength(1)
+    expect(emoji[0].matchedText).toBe('\u{1F389}\u{1F680}✨')
+  })
+  it('keeps a variation-selector emoji as one span', () => {
+    const v = detectUnicodeDecoration('Warning ⚠️ ahead.')
+    const emoji = v.filter(x => x.ruleId === 'unicode-decoration')
+    expect(emoji).toHaveLength(1)
+    expect(emoji[0].matchedText).toBe('⚠️')
+  })
+  it('does NOT flag ©, ®, or ™', () => {
+    assertSilent(detectUnicodeDecoration('© 2024 Acme Corp. Acme® and Widget™ are trademarks.'), 'unicode-decoration')
+  })
+  it('does NOT flag plain punctuation or accented text', () => {
+    assertSilent(detectUnicodeDecoration('Café visitors — even those from Zürich — love it.'), 'unicode-decoration')
   })
 })
 
@@ -1066,6 +1115,33 @@ describe('detectFalseRange', () => {
   })
   it('does NOT flag directional from', () => {
     assertSilent(detectFalseRange('They came from the countryside.'), 'false-range')
+  })
+  it('flags "everything from X to Y"', () => {
+    assertFires(detectFalseRange('The change affects everything from marketing emails to product descriptions.'), 'false-range')
+  })
+  it('flags "everyone from X to Y"', () => {
+    assertFires(detectFalseRange('The tool helps everyone from beginners to seasoned professionals.'), 'false-range')
+  })
+  it('does NOT flag numeric ranges after "everything from"', () => {
+    assertSilent(detectFalseRange('We stock everything from $5 to $500.'), 'false-range')
+  })
+  it('does NOT flag movement sentences with "everyone from"', () => {
+    assertSilent(detectFalseRange('Everyone from the office went home to their families early.'), 'false-range')
+  })
+  it('flags "whether you’re a X or a Y"', () => {
+    assertFires(detectFalseRange('Whether you’re a startup founder or a Fortune 500 executive, this applies to you.'), 'false-range')
+  })
+  it('flags "whether you are a X or just Y"', () => {
+    assertFires(detectFalseRange('Whether you are a seasoned developer or just starting out, the docs will help.'), 'false-range')
+  })
+  it('does NOT flag genuine "whether" disjunctions without a persona', () => {
+    assertSilent(detectFalseRange('I asked whether you had seen the report or not.'), 'false-range')
+  })
+  it('flags "Xs and Ys alike"', () => {
+    assertFires(detectFalseRange('The film delighted critics and audiences alike.'), 'false-range')
+  })
+  it('does NOT flag the "similarly" sense of alike', () => {
+    assertSilent(detectFalseRange('After decades together they look and act alike.'), 'false-range')
   })
 })
 

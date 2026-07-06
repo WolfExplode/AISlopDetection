@@ -355,12 +355,20 @@ export function detectQuestionThenAnswer(text: string): Violation[] {
     while ((m = sentenceRe.exec(para.text)) !== null) {
       sentences.push({ text: m[0], start: para.start + m.index })
     }
+    // Dialogue suppression: a quoted question answered by quoted (or narrated)
+    // speech is dialogue, not the rhetorical Q→A tell. Skip pairs where either
+    // sentence contains a double quote or opens with any quote character.
+    // (The sentence regex stops at ?, so a closing quote after a question mark
+    // lands at the start of the next sentence — caught by the opening check.)
+    const isDialogue = (t: string) =>
+      /["“”]/.test(t) || /^['"‘’“”]/.test(t)
+
     for (let i = 0; i < sentences.length - 1; i++) {
       const s = sentences[i].text.trim()
       const next = sentences[i + 1].text.trim()
       // The answer must be short — a long sentence after a question is just the
       // next thought, not the LLM pat-answer tell ("What does this mean? It means X.")
-      if (s.endsWith('?') && !next.endsWith('?') && next.length <= 120) {
+      if (s.endsWith('?') && !next.endsWith('?') && next.length <= 120 && !isDialogue(s) && !isDialogue(next)) {
         const start = sentences[i].start
         const end = sentences[i + 1].start + sentences[i + 1].text.length
         violations.push({
@@ -837,8 +845,17 @@ export function detectBoldFirstBullets(text: string): Violation[] {
   return violations
 }
 
-export function detectUnicodeArrows(text: string): Violation[] {
-  return findAll(text, /→/g, 'unicode-decoration')
+export function detectUnicodeDecoration(text: string): Violation[] {
+  const violations: Violation[] = []
+  // Arrow/pointer glyphs used as prose connectors: → ⇒ ⟶ ⟹ ► ▸ ➤ ↳
+  // (▶ U+25B6 and ➡ U+27A1 are Extended_Pictographic — the emoji pass catches them.)
+  violations.push(...findAll(text, /[→⇒⟶⟹►▸➤↳]/g, 'unicode-decoration'))
+  // Emoji decoration: any Extended_Pictographic run (checkmarks, rockets,
+  // sparkles, lightbulbs...). © ® ™ are technically Extended_Pictographic but
+  // legitimate in prose — excluded. U+FE0F (variation selector) and U+200D (ZWJ)
+  // glue multi-codepoint emoji so a run or ZWJ sequence highlights as one span.
+  violations.push(...findAll(text, /(?:(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}[\uFE0F\u200D]*)+/gu, 'unicode-decoration'))
+  return violations
 }
 
 export function detectDespiteChallenges(text: string): Violation[] {
@@ -1136,6 +1153,47 @@ export function detectFalseRange(text: string): Violation[] {
 
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
+    violations.push({
+      ruleId: 'false-range',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+    })
+  }
+
+  // "everything/everyone/anything/anyone from X to Y" — categorical scope claim.
+  // Endpoints capped at 3 words each. Matches containing digits are skipped:
+  // "everything from $5 to $500" is a real range, not a rhetorical one.
+  const scopeRe = /\b(?:everything|everyone|anything|anyone)\s+from\s+(?:[\w’'$-]+\s+){0,2}[\w’'$-]+\s+to\s+(?:[\w’'$-]+\s+){0,2}[\w’'$-]+/gi
+  while ((m = scopeRe.exec(text)) !== null) {
+    if (/\d/.test(m[0])) continue
+    violations.push({
+      ruleId: 'false-range',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+    })
+  }
+
+  // "whether you're a X or (a/just) Y" — persona false range addressing the
+  // reader ("whether you're a startup founder or a Fortune 500 executive").
+  const personaRe = /\bwhether\s+you(?:[’']re|\s+are)\s+an?\s+(?:[\w’'-]+\s+){0,4}[\w’'-]+\s+or\s+(?:(?:an?|just)\s+)?(?:[\w’'-]+\s+){0,4}[\w’'-]+/gi
+  while ((m = personaRe.exec(text)) !== null) {
+    violations.push({
+      ruleId: 'false-range',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+    })
+  }
+
+  // "Xs and Ys alike" — comprehensiveness flourish ("critics and fans alike").
+  // Require a plural-looking word (trailing single s, length > 3) on at least
+  // one side to avoid the "similarly" sense ("they look and act alike").
+  const alikeRe = /\b([\w’'-]+)\s+and\s+([\w’'-]+)\s+alike\b/gi
+  const pluralLike = (w: string) => w.length > 3 && /[^s]s$/i.test(w)
+  while ((m = alikeRe.exec(text)) !== null) {
+    if (!pluralLike(m[1]) && !pluralLike(m[2])) continue
     violations.push({
       ruleId: 'false-range',
       startIndex: m.index,
