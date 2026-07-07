@@ -934,6 +934,54 @@ describe('detectConceptLabel', () => {
   it('flags "the innovation chasm"', () => {
     assertFires(detectConceptLabel('Companies fall into the innovation chasm.'), 'invented-concept-label')
   })
+  it('flags "the hedonic treadmill"', () => {
+    assertFires(detectConceptLabel('We are stuck on the hedonic treadmill.'), 'invented-concept-label')
+  })
+  it('flags "productivity theater"', () => {
+    assertFires(detectConceptLabel('Most standups are just productivity theater.'), 'invented-concept-label')
+  })
+  it('flags "decision fatigue"', () => {
+    assertFires(detectConceptLabel('By noon, decision fatigue sets in.'), 'invented-concept-label')
+  })
+  it('flags "the complexity tax"', () => {
+    assertFires(detectConceptLabel('Every abstraction adds a complexity tax.'), 'invented-concept-label')
+  })
+  it('flags "doom loop"', () => {
+    assertFires(detectConceptLabel('The company entered a doom loop of layoffs.'), 'invented-concept-label')
+  })
+  it('flags "shame spiral"', () => {
+    assertFires(detectConceptLabel('It triggers a shame spiral every time.'), 'invented-concept-label')
+  })
+  it('flags "imposter syndrome" (established but slop-adjacent)', () => {
+    assertFires(detectConceptLabel('Many engineers describe imposter syndrome.'), 'invented-concept-label')
+  })
+  it('flags "regulatory quicksand"', () => {
+    assertFires(detectConceptLabel('Startups sink into regulatory quicksand.'), 'invented-concept-label')
+  })
+  it('flags "context whiplash"', () => {
+    assertFires(detectConceptLabel('Switching projects daily causes context whiplash.'), 'invented-concept-label')
+  })
+  it('does NOT flag determiner + noun ("the trap")', () => {
+    assertSilent(detectConceptLabel('Do not fall into the trap of assuming.'), 'invented-concept-label')
+  })
+  it('does NOT flag preposition + noun ("in limbo")', () => {
+    assertSilent(detectConceptLabel('The contract has been in limbo for weeks.'), 'invented-concept-label')
+  })
+  it('does NOT flag established literal compounds ("income tax")', () => {
+    assertSilent(detectConceptLabel('She filed her income tax return early.'), 'invented-concept-label')
+  })
+  it('does NOT flag "chronic fatigue"', () => {
+    assertSilent(detectConceptLabel('He was diagnosed with chronic fatigue.'), 'invented-concept-label')
+  })
+  it('does NOT flag "feedback loop"', () => {
+    assertSilent(detectConceptLabel('The system creates a feedback loop.'), 'invented-concept-label')
+  })
+  it('does NOT flag "movie theater"', () => {
+    assertSilent(detectConceptLabel('We met outside the movie theater.'), 'invented-concept-label')
+  })
+  it('does NOT flag "national debt"', () => {
+    assertSilent(detectConceptLabel('Congress debated the national debt.'), 'invented-concept-label')
+  })
   it('does NOT flag ordinary sentences without the suffix words', () => {
     assertSilent(detectConceptLabel('The product launched on schedule.'), 'invented-concept-label')
   })

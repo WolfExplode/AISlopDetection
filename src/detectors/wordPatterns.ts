@@ -863,9 +863,89 @@ export function detectDespiteChallenges(text: string): Violation[] {
   return findAll(text, re, 'despite-challenges')
 }
 
+// Abstract suffix nouns LLMs attach to a content word to coin pseudo-analytical
+// terms: "the attention paradox", "productivity theater", "decision fatigue".
+// Values list preceding words that form established literal compounds ("income
+// tax", "chronic fatigue") — real terms, not coined labels, so they're skipped.
+// Established-but-slop-adjacent compounds ("scope creep", "imposter syndrome",
+// "technical debt") stay flagged on purpose: the rule targets prose inflation.
+const CONCEPT_LABEL_NOUNS: Record<string, string[]> = {
+  // original six
+  paradox:   [],
+  trap:      ['booby', 'bear', 'mouse', 'speed', 'sand', 'steam', 'tourist'],
+  creep:     [],
+  vacuum:    [],
+  inversion: ['temperature'],
+  chasm:     [],
+  // motion / feedback metaphors
+  treadmill: [],
+  flywheel:  [],
+  spiral:    [],
+  vortex:    ['polar'],
+  cascade:   ['signaling', 'signalling', 'trophic', 'clotting', 'coagulation'],
+  whiplash:  [],
+  loop:      ['feedback', 'for', 'while', 'event', 'infinite', 'inner', 'outer', 'closed', 'open', 'main', 'game', 'render', 'training', 'retry'],
+  // hazard-terrain metaphors
+  minefield: [],
+  quicksand: [],
+  tightrope: [],
+  moat:      [],
+  mirage:    [],
+  purgatory: [],
+  limbo:     [],
+  // cost / pressure metaphors
+  tax:     ['income', 'sales', 'property', 'estate', 'payroll', 'carbon', 'corporate', 'inheritance', 'excise', 'council', 'poll', 'road', 'gas', 'flat', 'federal', 'state'],
+  debt:    ['national', 'student', 'credit', 'card', 'household', 'consumer', 'public', 'sovereign', 'government', 'medical', 'mortgage', 'foreign'],
+  deficit: ['budget', 'trade', 'fiscal', 'federal', 'attention', 'calorie', 'caloric'],
+  fatigue: ['chronic', 'adrenal', 'muscle', 'metal', 'battle', 'compassion', 'combat'],
+  // pseudo-clinical / pseudo-academic labels
+  syndrome: ['down', 'tourette', 'asperger', 'metabolic', 'tunnel', 'alcohol', 'bowel', 'leg', 'shock', 'distress', 'fatigue'],
+  fallacy:  ['logical', 'formal', 'informal'],
+  dilemma:  ['moral', 'ethical'],
+  illusion: ['optical', 'auditory'],
+  inertia:  ['thermal', 'rotational'],
+  // decay / growth labels
+  drift:   ['genetic', 'continental', 'snow'],
+  sprawl:  ['urban', 'suburban'],
+  bloat:   [],
+  theater: ['movie', 'home', 'musical', 'operating', 'community', 'dinner', 'amateur', 'regional', 'lecture'],
+  theatre: ['movie', 'home', 'musical', 'operating', 'community', 'dinner', 'amateur', 'regional', 'lecture', 'west'],
+}
+
+// A coined label needs a content word in front. A determiner, preposition, or
+// quantifier before the noun signals ordinary usage ("falls into the trap",
+// "in a vacuum", "left in limbo") — never the invented-concept tell.
+const CONCEPT_LABEL_SKIP_PRECEDING = new Set([
+  'the', 'an', 'this', 'that', 'these', 'those',
+  'my', 'your', 'his', 'her', 'its', 'our', 'their', 'whose',
+  'of', 'in', 'into', 'from', 'with', 'without', 'about', 'over', 'under',
+  'through', 'like', 'unlike', 'as', 'at', 'by', 'on', 'to', 'for', 'per', 'than',
+  'and', 'or', 'nor', 'but',
+  'any', 'no', 'some', 'every', 'each', 'one', 'another', 'such', 'own', 'said', 'same',
+])
+
+const CONCEPT_LABEL_RE = new RegExp(
+  `\\b([a-z][a-z-]+)\\s+(${Object.keys(CONCEPT_LABEL_NOUNS).join('|')})\\b`,
+  'gi',
+)
+
 export function detectConceptLabel(text: string): Violation[] {
-  const re = /\b[a-z]+\s+(paradox|trap|creep|vacuum|inversion|chasm)\b/gi
-  return findAll(text, re, 'invented-concept-label')
+  const violations: Violation[] = []
+  const re = new RegExp(CONCEPT_LABEL_RE.source, 'gi')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const preceding = m[1].toLowerCase()
+    const noun = m[2].toLowerCase()
+    if (CONCEPT_LABEL_SKIP_PRECEDING.has(preceding)) continue
+    if (CONCEPT_LABEL_NOUNS[noun]?.includes(preceding)) continue
+    violations.push({
+      ruleId: 'invented-concept-label',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+    })
+  }
+  return violations
 }
 
 export function detectDramaticFragment(text: string): Violation[] {
