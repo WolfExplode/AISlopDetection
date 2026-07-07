@@ -1395,13 +1395,28 @@ export function detectStackedIntensifiers(text: string): Violation[] {
 // Three-word sequences statistically overrepresented in AI creative writing
 // relative to human baselines (Paech et al., 2025).
 
+// Separator between n-gram tokens: spaces/tabs, optionally around a comma,
+// em-dash, or en-dash — "voice, barely a whisper" and "voice—barely a whisper"
+// are the same tell as the unpunctuated form. Newlines never join an n-gram.
+// Built from regex-literal .source so the Unicode dashes never pass through
+// string-escape handling (see the new RegExp + \uXXXX constraint in CLAUDE.md).
+const NGRAM_SEP = /(?:[ \t]*[,—–][ \t]*|[ \t]+)/.source
+// An intervening word, possibly with an apostrophe or hyphen ("wolf’s", "half-heard").
+const NGRAM_FILLER = /[\w’'-]+/.source
+// Gap between anchor tokens: a separator plus up to two intervening words, so
+// "glimmer of hope", "glimmer of faint hope", and "voice, barely a whisper"
+// all match while longer insertions ("barely more than a faint whisper"
+// between anchors) stay excluded.
+const NGRAM_GAP = `${NGRAM_SEP}(?:${NGRAM_FILLER}${NGRAM_SEP}){0,2}`
+
 export function detectSlopTrigrams(text: string): Violation[] {
   const violations: Violation[] = []
   for (const [phrase, weight] of Object.entries(SLOP_TRIGRAMS)) {
     const words = phrase.split(' ')
-    // Allow one optional word between each pair: "voice barely whisper" matches
-    // "voice barely a whisper" and "voice was barely a whisper".
-    const pattern = words.map(w => `\\b${w}\\b`).join('(?:\\s+\\w+)?\\s+')
+    // Join anchor words with the shared gap: "voice barely whisper" matches
+    // "voice barely a whisper", "voice was barely a whisper", and punctuated
+    // variants like "voice, barely a whisper".
+    const pattern = words.map(w => `\\b${w}\\b`).join(NGRAM_GAP)
     const re = new RegExp(pattern, 'gi')
     let m: RegExpExecArray | null
     while ((m = re.exec(text)) !== null) {
@@ -1421,10 +1436,10 @@ export function detectSlopBigrams(text: string): Violation[] {
   const violations: Violation[] = []
   for (const [phrase, weight] of Object.entries(SLOP_BIGRAMS)) {
     const [w1, w2] = phrase.split(' ')
-    // Allow one optional word between the pair so stopword-stripped entries
-    // like "glimmer hope" match "glimmer of hope" and "beacon hope" matches
-    // "beacon of hope".
-    const pattern = `\\b${w1}\\b(?:\\s+\\w+)?\\s+\\b${w2}\\b`
+    // Shared gap between the pair so stopword-stripped entries like
+    // "glimmer hope" match "glimmer of hope", "glimmer of faint hope",
+    // and punctuated variants like "brow, furrowed".
+    const pattern = `\\b${w1}\\b${NGRAM_GAP}\\b${w2}\\b`
     const re = new RegExp(pattern, 'gi')
     let m: RegExpExecArray | null
     while ((m = re.exec(text)) !== null) {

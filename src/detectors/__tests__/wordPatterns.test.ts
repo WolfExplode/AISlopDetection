@@ -48,6 +48,8 @@ import {
   detectInlineEmphasis,
   detectProfessionalDisclaimer,
   detectEarnedClaim,
+  detectSlopTrigrams,
+  detectSlopBigrams,
 } from '../wordPatterns'
 
 // Helper: assert at least one violation of the given rule exists
@@ -1503,6 +1505,52 @@ describe('detectSycophanticWords', () => {
   })
   it('does not flag praise inside quoted dialogue', () => {
     assertSilent(detectSycophanticWords('He grinned. "Nice catch!" she called back.'), 'sycophantic-words')
+  })
+})
+
+// ── Slop trigrams ─────────────────────────────────────────────────────────────
+
+describe('detectSlopTrigrams', () => {
+  it('flags "voice barely a whisper" (one filler word)', () => {
+    assertFires(detectSlopTrigrams('Her voice was barely a whisper.'), 'slop-trigram')
+  })
+  it('flags the comma variant "voice, barely a whisper"', () => {
+    assertFires(detectSlopTrigrams('She spoke in a low voice, barely a whisper.'), 'slop-trigram')
+  })
+  it('flags the em-dash variant "voice—barely a whisper"', () => {
+    assertFires(detectSlopTrigrams('His voice—barely a whisper—cut through the dark.'), 'slop-trigram')
+  })
+  it('flags "took a deep breath"', () => {
+    assertFires(detectSlopTrigrams('She took a deep breath and knocked.'), 'slop-trigram')
+  })
+  it('does not match across a newline', () => {
+    assertSilent(detectSlopTrigrams('I heard the voice\nbarely a whisper remained.'), 'slop-trigram')
+  })
+  it('does not match with more than two intervening words', () => {
+    assertSilent(detectSlopTrigrams('The voice that reached us was barely a whisper.'), 'slop-trigram')
+  })
+})
+
+// ── Slop bigrams ──────────────────────────────────────────────────────────────
+
+describe('detectSlopBigrams', () => {
+  it('flags "glimmer of hope" (one filler word)', () => {
+    assertFires(detectSlopBigrams('A glimmer of hope remained.'), 'slop-bigram')
+  })
+  it('flags "glimmer of faint hope" (two filler words)', () => {
+    assertFires(detectSlopBigrams('A glimmer of faint hope remained.'), 'slop-bigram')
+  })
+  it('flags the comma variant "brow, furrowed"', () => {
+    assertFires(detectSlopBigrams('His brow, furrowed with worry, gave him away.'), 'slop-bigram')
+  })
+  it('flags an apostrophe filler word', () => {
+    assertFires(detectSlopBigrams('He felt the day’s surge of anger.'), 'slop-bigram')
+  })
+  it('does not match with more than two intervening words', () => {
+    assertSilent(detectSlopBigrams('The glimmer in what was left of hope faded.'), 'slop-bigram')
+  })
+  it('does not match across a newline', () => {
+    assertSilent(detectSlopBigrams('a faint glimmer\nof hope in the dark'), 'slop-bigram')
   })
 })
 
