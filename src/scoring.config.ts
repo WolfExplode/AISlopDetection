@@ -56,7 +56,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'question-then-answer':     { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 1.5 },
   'false-range':              { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
   'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.0 },
-  'em-dash-overuse':          { ruleWeight: 1.4, scoringMode: 'threshold',   freeRate: 1.0 },
+  'em-dash-overuse':          { ruleWeight: 1.4, scoringMode: 'diminishing',   freeRate: 1.0, diminishingFactor: 0.95 },
   'triple-fragment':          { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 0.5 },
   'triple-construction':      { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 1.5 },
 

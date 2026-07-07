@@ -1368,6 +1368,84 @@ describe('detectSycophanticPhrases', () => {
   it('flags "tip my hat"', () => {
     assertFires(detectSycophanticPhrases('I tip my hat to anyone who manages that.'), 'sycophantic-phrases')
   })
+  it('flags curly-apostrophe "you’re absolutely right" (regression: normalize was a no-op)', () => {
+    assertFires(detectSycophanticPhrases('You’re absolutely right about that.'), 'sycophantic-phrases')
+  })
+  it('flags curly-apostrophe "that’s a great point"', () => {
+    assertFires(detectSycophanticPhrases('That’s a great point worth exploring.'), 'sycophantic-phrases')
+  })
+  it('flags "this is an excellent point" (subject variant)', () => {
+    assertFires(detectSycophanticPhrases('This is an excellent point about caching.'), 'sycophantic-phrases')
+  })
+  it('flags "that’s such a great question" (degree variant)', () => {
+    assertFires(detectSycophanticPhrases('That’s such a great question to sit with.'), 'sycophantic-phrases')
+  })
+  it('flags "what a great idea"', () => {
+    assertFires(detectSycophanticPhrases('What a great idea for the launch.'), 'sycophantic-phrases')
+  })
+  it('flags "you make an important point"', () => {
+    assertFires(detectSycophanticPhrases('You make an important point about latency.'), 'sycophantic-phrases')
+  })
+  it('flags copula "spot on"', () => {
+    assertFires(detectSycophanticPhrases('Your analysis is spot on.'), 'sycophantic-phrases')
+  })
+  it('does not flag a literal spot', () => {
+    assertSilent(detectSycophanticPhrases('There is a spot on your shirt.'), 'sycophantic-phrases')
+  })
+  it('flags "hit the nail on the head"', () => {
+    assertFires(detectSycophanticPhrases('You’ve hit the nail on the head with this.'), 'sycophantic-phrases')
+  })
+  it('flags "couldn’t agree more" (curly)', () => {
+    assertFires(detectSycophanticPhrases('I couldn’t agree more.'), 'sycophantic-phrases')
+  })
+  it('flags "I completely agree"', () => {
+    assertFires(detectSycophanticPhrases('I completely agree with your framing.'), 'sycophantic-phrases')
+  })
+  it('flags "you’re asking the right questions"', () => {
+    assertFires(detectSycophanticPhrases('You’re asking exactly the right questions.'), 'sycophantic-phrases')
+  })
+  it('flags flattering attribution "as you rightly point out"', () => {
+    assertFires(detectSycophanticPhrases('As you rightly point out, the data is thin.'), 'sycophantic-phrases')
+  })
+  it('does not flag third-person "she correctly identified"', () => {
+    assertSilent(detectSycophanticPhrases('She correctly identified the failure mode.'), 'sycophantic-phrases')
+  })
+  it('flags "your instincts are spot on"', () => {
+    assertFires(detectSycophanticPhrases('Your instincts are spot on here.'), 'sycophantic-phrases')
+  })
+  it('flags "you clearly understand"', () => {
+    assertFires(detectSycophanticPhrases('You clearly understand the tradeoffs involved.'), 'sycophantic-phrases')
+  })
+  it('flags "you’ve done a great job"', () => {
+    assertFires(detectSycophanticPhrases('You’ve done a great job of laying this out.'), 'sycophantic-phrases')
+  })
+  it('flags "you’re doing an amazing job"', () => {
+    assertFires(detectSycophanticPhrases('You’re doing an amazing job so far.'), 'sycophantic-phrases')
+  })
+  it('flags "you nailed it"', () => {
+    assertFires(detectSycophanticPhrases('You absolutely nailed it with this draft.'), 'sycophantic-phrases')
+  })
+  it('flags "you should be proud"', () => {
+    assertFires(detectSycophanticPhrases('You should be really proud of this work.'), 'sycophantic-phrases')
+  })
+  it('flags "give yourself more credit"', () => {
+    assertFires(detectSycophanticPhrases('You need to give yourself more credit.'), 'sycophantic-phrases')
+  })
+  it('flags "off to a great start"', () => {
+    assertFires(detectSycophanticPhrases('The project is off to a great start.'), 'sycophantic-phrases')
+  })
+  it('flags "you’re onto something"', () => {
+    assertFires(detectSycophanticPhrases('You’re onto something here.'), 'sycophantic-phrases')
+  })
+  it('flags "chef’s kiss"', () => {
+    assertFires(detectSycophanticPhrases('The closing paragraph is chef’s kiss.'), 'sycophantic-phrases')
+  })
+  it('flags "kudos"', () => {
+    assertFires(detectSycophanticPhrases('Kudos to the reviewers for catching it.'), 'sycophantic-phrases')
+  })
+  it('flags "beautifully put"', () => {
+    assertFires(detectSycophanticPhrases('That was beautifully put.'), 'sycophantic-phrases')
+  })
 })
 
 // ── Sycophantic Word Openers ──────────────────────────────────────────────────
@@ -1392,6 +1470,39 @@ describe('detectSycophanticWords', () => {
   it('does not flag "certainly" without following comma or exclamation', () => {
     const text = 'She was certainly aware of the risks involved.'
     expect(detectSycophanticWords(text).some(v => v.ruleId === 'sycophantic-words')).toBe(false)
+  })
+  it('flags "Absolutely." as a one-word sentence', () => {
+    assertFires(detectSycophanticWords('Absolutely. The design holds up.'), 'sycophantic-words')
+  })
+  it('flags "Of course." as a one-word sentence', () => {
+    assertFires(detectSycophanticWords('Of course. There are caveats.'), 'sycophantic-words')
+  })
+  it('flags "Perfect." praise opener', () => {
+    assertFires(detectSycophanticWords('Perfect. Now run the tests again.'), 'sycophantic-words')
+  })
+  it('flags "Excellent!" praise opener', () => {
+    assertFires(detectSycophanticWords('Excellent! The next step is deployment.'), 'sycophantic-words')
+  })
+  it('flags "Well done," praise opener', () => {
+    assertFires(detectSycophanticWords('Well done, everyone.'), 'sycophantic-words')
+  })
+  it('flags "Great catch!" praise opener', () => {
+    assertFires(detectSycophanticWords('Great catch! That would have shipped broken.'), 'sycophantic-words')
+  })
+  it('flags an opener at the start of a new line', () => {
+    assertFires(detectSycophanticWords('Here is the plan:\nPerfect, we ship Friday.'), 'sycophantic-words')
+  })
+  it('does not flag "well done" describing a steak', () => {
+    assertSilent(detectSycophanticWords('I like my steak well done.'), 'sycophantic-words')
+  })
+  it('does not flag "perfect" mid-sentence', () => {
+    assertSilent(detectSycophanticWords('The timing was perfect.'), 'sycophantic-words')
+  })
+  it('does not flag "Definitely not" (no immediate punctuation)', () => {
+    assertSilent(detectSycophanticWords('Definitely not what I expected.'), 'sycophantic-words')
+  })
+  it('does not flag praise inside quoted dialogue', () => {
+    assertSilent(detectSycophanticWords('He grinned. "Nice catch!" she called back.'), 'sycophantic-words')
   })
 })
 

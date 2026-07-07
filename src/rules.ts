@@ -866,7 +866,7 @@ export const RULES: ViolationRule[] = [
     id: 'sycophantic-words',
     name: 'Sycophantic Opener',
     category: 'sycophancy',
-    description: 'Single-word empty affirmations used as sentence openers: "Absolutely," "Certainly," "Exactly," "Definitely," "Precisely" — AI performing eagerness before giving the actual answer.',
+    description: 'Empty affirmations and evaluative praise used as sentence openers: "Absolutely," "Certainly," "Exactly," "Perfect." "Excellent!" "Well done," — AI performing eagerness or grading the previous turn before giving the actual answer.',
     tip: 'Delete the opener. The sentence that follows it is the answer; lead with that.',
     canRemove: true,
     color: '#fbbf24',

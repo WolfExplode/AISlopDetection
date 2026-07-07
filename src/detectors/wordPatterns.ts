@@ -1,4 +1,4 @@
-﻿import type { Violation } from '../types'
+import type { Violation } from '../types'
 import {
   INTENSIFIERS,
   INTENSIFIER_PHRASES,
@@ -144,7 +144,7 @@ export function detectAlmostHedge(text: string): Violation[] {
 }
 
 export function detectEraOpener(text: string): Violation[] {
-  const re = /\bin\s+(?:an?\s+era\s+(?:of|where|when|in\s+which)|today['']?s\s+(?:fast[-\s]paced|digital|modern|globalized|interconnected)\s+world)\b/gi
+  const re = /\bin\s+(?:an?\s+era\s+(?:of|where|when|in\s+which)|today[’']?s\s+(?:fast[-\s]paced|digital|modern|globalized|interconnected)\s+world)\b/gi
   return findAll(text, re, 'era-opener')
 }
 
@@ -1061,15 +1061,15 @@ export function detectChatbotArtifact(text: string): Violation[] {
 
   // Apostrophe variants — use regex to handle straight vs. curly quotes
   const regexPhrases = [
-    /\bdon['']t\s+hesitate\s+to\b/gi,
-    /\bi['']d\s+be\s+(?:glad|happy|delighted)\s+to\b/gi,
-    /\bhere['']s\s+a\s+(?:breakdown|summary|quick\s+overview)\b/gi,
+    /\bdon[’']t\s+hesitate\s+to\b/gi,
+    /\bi[’']d\s+be\s+(?:glad|happy|delighted)\s+to\b/gi,
+    /\bhere[’']s\s+a\s+(?:breakdown|summary|quick\s+overview)\b/gi,
     // AI self-ID with apostrophe
-    /\bas\s+an\s+ai[,.]?\s+i[''](?:m|ve|ll|d)\b/gi,
+    /\bas\s+an\s+ai[,.]?\s+i[’'](?:m|ve|ll|d)\b/gi,
     // Prompt refusal with apostrophe
-    /\bi['']m\s+unable\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
-    /\bi['']m\s+not\s+able\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
-    /\bi\s+can['']t\s+(?:assist\s+with|provide|help\s+with|fulfill|generate\s+content)\b/gi,
+    /\bi[’']m\s+unable\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
+    /\bi[’']m\s+not\s+able\s+to\s+(?:provide|assist|help|fulfill|generate|create)\b/gi,
+    /\bi\s+can[’']t\s+(?:assist\s+with|provide|help\s+with|fulfill|generate\s+content)\b/gi,
   ]
   for (const re of regexPhrases) {
     violations.push(...findAll(text, re, 'chatbot-artifact'))
@@ -1584,7 +1584,7 @@ export function detectSycophanticPhrases(text: string): Violation[] {
   const violations: Violation[] = []
   // Normalize curly apostrophes so exact-phrase indexOf matching works regardless
   // of whether the text comes from contenteditable (curly) or plain input (straight).
-  const lower = text.toLowerCase().replace(/['']/g, "'")
+  const lower = text.toLowerCase().replace(/[’']/g, "'")
 
   const exactPhrases = [
     "you're absolutely right",
@@ -1643,6 +1643,10 @@ export function detectSycophanticPhrases(text: string): Violation[] {
     "hats off to",
     "tip my hat to",
     "tip my hat",
+    "could not agree more",
+    "beautifully put",
+    "perfectly put",
+    "elegantly put",
   ]
 
   for (const phrase of exactPhrases) {
@@ -1658,19 +1662,54 @@ export function detectSycophanticPhrases(text: string): Violation[] {
     }
   }
 
-  // Regex for variable-form patterns and explicit ' for curly apostrophes.
-  // [''] in source may be normalized to two straight quotes by some editors —
-  // use ' (RIGHT SINGLE QUOTATION MARK) explicitly for reliability.
+  // Regex for variable-form patterns. Apostrophe classes are written with a
+  // literal U+2019 (right single quotation mark) plus straight quote. Editors
+  // and edit tooling have silently normalized U+2019 to a straight quote here
+  // before, making the classes never match curly-quote contenteditable text.
+  // Verify via byte inspection after touching these lines.
   const regexPhrases = [
-    /\byou['']re\s+absolutely\s+right\b/gi,
-    /\byou['']re\s+so\s+right\b/gi,
-    /\byou['']re\s+completely\s+right\b/gi,
-    /\byou['']re\s+(?:very\s+)?insightful\b/gi,
-    /\byou['']re\s+(?:very\s+)?self-aware\b/gi,
-    /\bthat['']s\s+(?:a\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful)\s+(?:point|observation|question|insight)\b/gi,
-    /\bthat['']s\s+exactly\s+right\b/gi,
-    /\byou['']ve\s+really\s+thought\s+this\s+through\b/gi,
+    /\byou[’']re\s+absolutely\s+right\b/gi,
+    /\byou[’']re\s+so\s+right\b/gi,
+    /\byou[’']re\s+completely\s+right\b/gi,
+    /\byou[’']re\s+(?:very\s+)?insightful\b/gi,
+    /\byou[’']re\s+(?:very\s+)?self-aware\b/gi,
+    /\bthat[’']s\s+(?:a\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful)\s+(?:point|observation|question|insight)\b/gi,
+    /\bthat[’']s\s+exactly\s+right\b/gi,
+    /\byou[’']ve\s+really\s+thought\s+this\s+through\b/gi,
     /\bi\s+love\s+(?:that|this)\s+question\b/gi,
+    // Broadened "that's a great point": subject variants, "such a", degree
+    // adverbs, and a wider adjective/noun set than the exact-phrase list.
+    /\b(?:that[’']s|that is|this is)\s+(?:such\s+an?|an?)\s+(?:really\s+|very\s+|truly\s+|genuinely\s+|incredibly\s+)?(?:great|excellent|fantastic|brilliant|valid|wonderful|thoughtful|insightful|astute|keen|fascinating)\s+(?:point|observation|question|insight|idea|catch)\b/gi,
+    // "what a(n) [adj] [noun]" — wider than the exact-phrase list
+    /\bwhat\s+an?\s+(?:great|excellent|thoughtful|wonderful|fantastic|brilliant|fascinating|astute|insightful|interesting)\s+(?:question|point|observation|idea|insight|catch)\b/gi,
+    // "you raise/make/bring up a [adj] [noun]" — wider verbs and adjectives
+    /\byou\s+(?:raise[ds]?|make|made|bring\s+up|brought\s+up)\s+(?:such\s+an?|an?)\s+(?:really\s+|very\s+|truly\s+)?(?:great|excellent|good|valid|fair|important|interesting|compelling|strong|solid|fascinating|astute|insightful|crucial|key|wonderful|brilliant|thoughtful)\s+(?:point|question|issue|concern|observation|distinction)\b/gi,
+    // "is/are spot on" — copula anchor avoids literal spots ("a spot on the wall")
+    /(?:\b(?:is|are|was|were)|[’'](?:s|re))\s+(?:absolutely\s+|completely\s+|exactly\s+|dead\s+)?spot[- ]on\b/gi,
+    // "hit the nail on the head"
+    /\b(?:hit|hits|hitting)\s+the\s+nail\s+(?:right\s+|squarely\s+)?on\s+the\s+head\b/gi,
+    // Performed agreement: "couldn't agree more", "I completely agree"
+    /\b(?:i\s+)?couldn[’']t\s+agree\s+(?:with\s+(?:you|that|this)\s+)?more\b/gi,
+    /\bi\s+(?:completely|totally|wholeheartedly|absolutely|fully|100%)\s+agree\b/gi,
+    // "you're asking (exactly) the right question(s)"
+    /\byou(?:[’']re|\s+are)\s+asking\s+(?:exactly\s+|precisely\s+)?(?:all\s+)?the\s+right\s+questions?\b/gi,
+    // Flattering attribution: "as you rightly point out", "you correctly note"
+    /\byou\s+(?:rightly|correctly|astutely|aptly|wisely|perceptively|brilliantly)\s+(?:point(?:ed)?\s+out|note[ds]?|observe[ds]?|say|said|put\s+it|identif(?:y|ied)|recognize[ds]?|highlight(?:ed)?)\b/gi,
+    // Instinct validation: "your instincts are spot on / right / sound"
+    /\byour\s+(?:instincts?|intuition|gut)\s+(?:is|are|was|were)\s+(?:spot[- ]on|right|correct|good|sound|dead[- ]on)\b/gi,
+    // Competence flattery: "you clearly understand", "you obviously know"
+    /\byou\s+(?:clearly|obviously|evidently)\s+(?:understand|know|grasp|care)\b/gi,
+    // Praising the reader's work: "you've done / you're doing a great job"
+    /\byou(?:[’'](?:ve|re)|\s+(?:have|are))?\s+(?:done|did|doing|do)\s+an?\s+(?:great|good|fantastic|wonderful|amazing|excellent|incredible|phenomenal)\s+job\b/gi,
+    /\byou\s+(?:absolutely\s+|totally\s+|really\s+)?nailed\s+it\b/gi,
+    // Encouragement staples
+    /\byou\s+should\s+be\s+(?:really\s+|very\s+|incredibly\s+|extremely\s+)?proud\b/gi,
+    /\bgive\s+yourself\s+(?:more\s+|some\s+)?credit\b/gi,
+    /\b(?:off\s+to|that[’']s)\s+a\s+(?:great|good|strong|solid|fantastic|promising)\s+start\b/gi,
+    /\byou(?:[’']re|\s+are)\s+(?:really\s+)?on\s?to\s+something\b/gi,
+    // Modern praise slop
+    /\bchef[’']s\s+kiss\b/gi,
+    /\bkudos\b/gi,
   ]
   for (const re of regexPhrases) {
     violations.push(...findAll(text, re, 'sycophantic-phrases'))
@@ -1680,26 +1719,27 @@ export function detectSycophanticPhrases(text: string): Violation[] {
 }
 
 // ── Sycophantic word openers ─────────────────────────────────────────────────
-// Single-word empty affirmations at sentence boundaries. "Absolutely," and
-// "Certainly," as openers are near-exclusively AI performing eagerness — not
-// a pattern that appears in human prose.
+// Single-word affirmations and evaluative praise at sentence boundaries.
+// "Absolutely," and "Perfect." as openers are near-exclusively AI performing
+// eagerness or grading the previous turn — not a pattern of human prose.
 
 export function detectSycophanticWords(text: string): Violation[] {
-  // Match single-word affirmations at sentence start (beginning of text or
-  // after sentence-ending punctuation + whitespace). Require a comma or
-  // exclamation to follow — "Absolutely, X" not "absolutely fundamental".
-  const patterns = [
-    /(?:^|(?<=[.!?]\s{1,3}))Absolutely(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Certainly(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Exactly(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Definitely(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Precisely(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Indeed(?=[,!])/gi,
-    /(?:^|(?<=[.!?]\s{1,3}))Of\s+course(?=[,!])/gi,
-  ]
+  // Anchored at text start, line start (m flag), or after sentence-ending
+  // punctuation + whitespace. Requires [,.!] immediately after so
+  // "Absolutely, X" / "Absolutely." fire but "absolutely fundamental" never
+  // does. The period form ("Perfect. Now...") is the one-word-sentence
+  // variant of the same eager-assistant tic.
+  const affirmations =
+    /(?:^|(?<=[.!?]\s{1,3}))(?:Absolutely|Certainly|Exactly|Definitely|Precisely|Indeed|Of course)(?=[,.!])/gim
+  // Evaluative praise graded onto whatever preceded it ("Excellent! Next...").
+  // The boundary anchor keeps quoted dialogue silent: in dialogue like
+  // < He grinned. "Nice catch!" > the quote character sits between the
+  // punctuation and the word, so the lookbehind never matches.
+  const praise =
+    /(?:^|(?<=[.!?]\s{1,3}))(?:Perfect|Excellent|Brilliant|Fantastic|Wonderful|Amazing|Spot on|Well said|Well put|Well done|Great catch|Good catch|Nice catch)(?=[,.!])/gim
 
   const violations: Violation[] = []
-  for (const re of patterns) {
+  for (const re of [affirmations, praise]) {
     violations.push(...findAll(text, re, 'sycophantic-words'))
   }
   return violations

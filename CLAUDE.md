@@ -8,7 +8,7 @@ Web app that detects LLM-generated prose patterns in text and highlights them wi
 - **pnpm** — use pnpm for all package operations, never npm or yarn
 - `pnpm dev` — dev server on localhost:5173
 - `pnpm build` — type-check + build to `dist/`
-- `pnpm test` — Vitest unit tests (514 tests, all client-side detectors)
+- `pnpm test` — Vitest unit tests (551 tests, all client-side detectors)
 
 ## Architecture
 
