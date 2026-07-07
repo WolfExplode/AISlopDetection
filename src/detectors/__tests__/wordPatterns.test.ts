@@ -605,6 +605,9 @@ describe('detectMetaphorCrutch (spec examples)', () => {
   it('flags "hit the nail on the head"', () => {
     assertFires(detectMetaphorCrutch('You hit the nail on the head with that observation.'), 'metaphor-crutch')
   })
+  it('flags "Swiss Army knife"', () => {
+    assertFires(detectMetaphorCrutch('The tool is a Swiss Army knife for developers.'), 'metaphor-crutch')
+  })
 })
 
 // ── Listicle Instinct ──────────────────────────────────────────────────────
@@ -1662,5 +1665,33 @@ describe('detectInlineEmphasis', () => {
   })
   it('fires via runClientDetectors', () => {
     assertFires(runClientDetectors('The process is **critically important** for success.'), 'inline-emphasis')
+  })
+})
+
+// ── Code regions are never scanned ─────────────────────────────────────────
+
+describe('code-region masking (via runClientDetectors)', () => {
+  it('does not flag slop vocabulary inside a fenced code block', () => {
+    const text = 'Here is an ordinary opening sentence about the weather today.\n\n```js\n// leverage the robust framework to delve deeper\nconst x = "crucial"\n```\n\nAnd here is an ordinary closing sentence about the weather tomorrow.'
+    const violations = runClientDetectors(text)
+    expect(violations).toHaveLength(0)
+  })
+
+  it('does not flag slop vocabulary inside inline code', () => {
+    assertSilent(runClientDetectors('Call `delve()` to search the tree.'), 'overused-intensifier')
+  })
+
+  it('still flags the same vocabulary outside the code block', () => {
+    const text = 'Let us delve into this.\n\n```\nclean code here\n```\n'
+    assertFires(runClientDetectors(text), 'overused-intensifier')
+  })
+
+  it('keeps violation offsets aligned with the original text', () => {
+    const text = '```\npadding padding\n```\n\nWe must leverage our assets.'
+    const violations = runClientDetectors(text)
+    const v = violations.find(x => x.ruleId === 'overused-intensifier')
+    expect(v).toBeDefined()
+    expect(text.slice(v!.startIndex, v!.endIndex)).toBe(v!.matchedText)
+    expect(v!.matchedText.toLowerCase()).toContain('leverage')
   })
 })

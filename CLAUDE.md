@@ -34,6 +34,7 @@ src/
   utils/
     buildHighlightedHTML.ts  # Converts text + violations → HTML string with <mark> spans
     docFrequency.ts          # Document Frequency + Hapax Guard (CONTEXT.md § Frequency); full contract in its header
+    maskCodeRegions.ts       # Length-preserving masking of markdown code (fences + inline spans) — code is never scanned
 ```
 
 ## Detection tiers
@@ -86,6 +87,7 @@ Each rule in `src/rules.ts` has:
 
 ## Key constraints on detectors
 
+- **Code is never scanned.** `runClientDetectors()` masks markdown code regions (fenced blocks and inline backtick spans) to spaces via `maskCodeRegions()` before any detector runs — length-preserving, so offsets stay valid against the original text. App.tsx applies the same mask to the text sent to LLM detectors and to word count / writing metrics. Individual `detectXxx()` functions called directly (e.g. in unit tests) do NOT mask; only the `runClientDetectors()` pipeline does. Indented (4-space) code blocks are not masked — too ambiguous vs. list continuations.
 - **Hapax Guard: imported vocabulary only.** (Terms defined in CONTEXT.md § Frequency.) A Violation whose term recurs anywhere else in the document — head-noun matched, inflections folded, doc-wide — is suppressed, because recurrence means the document is natively in that term's domain ("knob" elsewhere → "It's a volume knob stuck at max" is literal). Apply it only to rules that flag *imported* vocabulary (metaphor vehicles; scare-quoted terms later adopted unquoted). Never apply it to rules that flag *invented* vocabulary — recurrence of a coined label ("the attention paradox" ×5) is not exculpatory, so guarding `invented-concept-label` would create silent false negatives on the worst documents. A *recurring* imported vehicle is `dead-metaphor`'s jurisdiction (document-tier), not a client rule's.
 - **Paragraph boundaries matter.** Detectors that operate on sentence pairs must use `splitParagraphs()` first, then split by sentence within each paragraph. Never pair sentences across `\n\n` boundaries.
 - **Q→A: answer must be short, and dialogue never fires.** The question-then-answer detector requires the answer sentence to be ≤120 chars, and skips pairs where either sentence contains a double quote or opens with any quote character (quoted questions/answers are speech, not the rhetorical tell).

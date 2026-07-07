@@ -3,6 +3,7 @@ import { retext } from 'retext'
 // @ts-ignore — retext-indefinite-article ships its own types but path varies by bundler
 import retextIndefiniteArticle from 'retext-indefinite-article'
 import nlp from './nlpInstance'
+import { maskCodeRegions } from '../utils/maskCodeRegions'
 import type { Violation } from '../types'
 
 // Pre-built processor — reused across all calls
@@ -65,7 +66,11 @@ import {
   detectEarnedClaim,
 } from './wordPatterns'
 
-export function runClientDetectors(text: string): Violation[] {
+export function runClientDetectors(rawText: string): Violation[] {
+  // Code is never prose: mask code regions (length-preserving, offsets stay
+  // valid) so no detector scans, labels, or counts them — including the
+  // Hapax Guard's document-frequency counts and slop-cluster windows.
+  const text = maskCodeRegions(rawText)
   const all: Violation[] = [
     ...detectHighlightSlop(text),
     ...detectOverusedIntensifiers(text),

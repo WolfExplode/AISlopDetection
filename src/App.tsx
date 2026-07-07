@@ -14,6 +14,7 @@ import { useDarkMode } from './hooks/useDarkMode'
 import { ThemeContext, lightTheme, darkTheme } from './theme'
 import { SAMPLE_TEXT } from './data/sampleText'
 import { computeMATTR, computeWritingMetrics, computeWordOveruse } from './utils/slopScore'
+import { maskCodeRegions } from './utils/maskCodeRegions'
 import { useWordfreq } from './hooks/useWordfreq'
 import SAMPLE_VIOLATIONS from './data/sampleViolations.json'
 
@@ -255,12 +256,16 @@ export default function App() {
       }
     }
 
-    runLLMDetectors(text, apiKey, undefined, provider, localConfig ?? undefined)
+    // Mask code regions (length-preserving) so the LLM never labels code
+    // and matchedText lookups can't land inside a code block
+    const proseText = maskCodeRegions(text)
+
+    runLLMDetectors(proseText, apiKey, undefined, provider, localConfig ?? undefined)
       .then(results => { collected.push(...results) })
       .catch(e => { errors.push(e instanceof Error ? e.message : String(e)) })
       .finally(oneDone)
 
-    runDocumentDetectors(text, apiKey, undefined, provider, localConfig ?? undefined)
+    runDocumentDetectors(proseText, apiKey, undefined, provider, localConfig ?? undefined)
       .then(results => { collected.push(...results) })
       .catch(e => { errors.push(e instanceof Error ? e.message : String(e)) })
       .finally(oneDone)
@@ -563,13 +568,16 @@ export default function App() {
     document.addEventListener('mouseup', onMouseUp)
   }, [sidebarWidth])
 
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length
-  const mattr = useMemo(() => computeMATTR(text), [text])
-  const writingMetrics = useMemo(() => computeWritingMetrics(text), [text])
+  // Prose-only view of the text: code regions masked out, so word count and
+  // writing metrics reflect what the detectors actually scan
+  const proseText = useMemo(() => maskCodeRegions(text), [text])
+  const wordCount = proseText.trim().split(/\s+/).filter(Boolean).length
+  const mattr = useMemo(() => computeMATTR(proseText), [proseText])
+  const writingMetrics = useMemo(() => computeWritingMetrics(proseText), [proseText])
   const { wf, status: wordfreqStatus } = useWordfreq()
   const wordOveruse = useMemo(
-    () => (wf ? computeWordOveruse(text, wf) : null),
-    [text, wf]
+    () => (wf ? computeWordOveruse(proseText, wf) : null),
+    [proseText, wf]
   )
   const stalePct = llmStatus === 'stale' ? stalePercent(lastAnalyzedTextRef.current, text) : 0
 
