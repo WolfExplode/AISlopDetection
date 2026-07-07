@@ -165,16 +165,6 @@ function isTableSeparator(line: string): boolean {
   return /^\|?[\s:|-]+\|/.test(line) && /[-]/.test(line) && !/[a-zA-Z0-9]/.test(line)
 }
 
-class HrWidget extends WidgetType {
-  toDOM() {
-    const hr = document.createElement('hr')
-    hr.className = 'cm-md-hr-widget'
-    return hr
-  }
-  ignoreEvent() { return false }
-  eq(other: HrWidget) { return other instanceof HrWidget }
-}
-
 class BulletWidget extends WidgetType {
   depth: number
   constructor(depth: number) { super(); this.depth = depth }
@@ -192,6 +182,33 @@ class BulletWidget extends WidgetType {
 
 function cursorIn(state: EditorState, from: number, to: number): boolean {
   return state.selection.ranges.some(r => r.from <= to && r.to >= from)
+}
+
+function addLineClassRange(
+  decos: RangeDeco[],
+  doc: EditorState['doc'],
+  from: number,
+  to: number,
+  className: string,
+) {
+  const endPos = Math.max(from, Math.min(doc.length, to > from ? to - 1 : to))
+  const first = doc.lineAt(from)
+  const last = doc.lineAt(endPos)
+
+  for (let lineNo = first.number; lineNo <= last.number; lineNo++) {
+    const line = doc.line(lineNo)
+    const classes = [
+      className,
+      lineNo === first.number ? `${className}-first` : '',
+      lineNo === last.number ? `${className}-last` : '',
+    ].filter(Boolean).join(' ')
+
+    decos.push({
+      from: line.from,
+      to: line.from,
+      value: Decoration.line({ class: classes }),
+    })
+  }
 }
 
 // ── Inline decorations (ViewPlugin) ──────────────────────────────────────────
@@ -350,6 +367,13 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
     enter(node) {
       const { from, to, name } = node
 
+      // Code block line decoration. Nested parsers provide token highlighting;
+      // this supplies the block shape and monospace text treatment.
+      if (name === 'FencedCode' || name === 'CodeBlock') {
+        addLineClassRange(decos, doc, from, to, 'cm-md-code-block')
+        return false
+      }
+
       // Heading line decoration
       const hm = name.match(/^ATXHeading([1-6])$/)
       if (hm) {
@@ -369,10 +393,13 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
         return false
       }
 
-      // Horizontal rule: block replace widget
+      // Horizontal rule: line decoration only. Replacing this with a block
+      // widget changes vertical geometry and makes clicks drift lower in long
+      // documents with many dividers.
       if (name === 'HorizontalRule') {
         if (!cursorIn(state, from, to)) {
-          decos.push({ from, to, value: Decoration.replace({ widget: new HrWidget(), block: true }) })
+          const lineFrom = doc.lineAt(from).from
+          decos.push({ from: lineFrom, to: lineFrom, value: Decoration.line({ class: 'cm-md-hr-line' }) })
         }
         return false
       }

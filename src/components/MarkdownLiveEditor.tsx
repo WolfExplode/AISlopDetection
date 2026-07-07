@@ -6,7 +6,8 @@ import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import type { Violation } from '../types'
 import { livePreviewPlugin, blockDecorationsField } from '../editor/livePreviewPlugin'
 import { violationMarksField, violationsDataField, setViolationsEffect } from '../editor/violationMarksExtension'
-import { buildEditorTheme } from '../editor/editorTheme'
+import { buildEditorTheme, buildSyntaxHighlighting } from '../editor/editorTheme'
+import { commonCodeLanguages } from '../editor/codeLanguages'
 
 interface ViolationClickInfo {
   ruleIds: string[]
@@ -59,14 +60,14 @@ export default function MarkdownLiveEditor({
       state: EditorState.create({
         doc: initialText,
         extensions: [
-          markdown(),
+          markdown({ codeLanguages: commonCodeLanguages }),
           livePreviewPlugin,
           blockDecorationsField,
           violationsDataField,
           violationMarksField,
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
-          themeCompartment.of(buildEditorTheme(dark)),
+          themeCompartment.of([buildEditorTheme(dark), buildSyntaxHighlighting(dark)]),
           EditorView.updateListener.of(update => {
             if (!update.docChanged) return
             const newText = update.state.doc.toString()
@@ -111,7 +112,7 @@ export default function MarkdownLiveEditor({
     const view = viewRef.current
     if (!view) return
     view.dispatch({
-      effects: themeCompartmentRef.current.reconfigure(buildEditorTheme(dark)),
+      effects: themeCompartmentRef.current.reconfigure([buildEditorTheme(dark), buildSyntaxHighlighting(dark)]),
     })
   }, [dark])
 

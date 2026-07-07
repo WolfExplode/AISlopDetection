@@ -1,4 +1,6 @@
 import { EditorView } from '@codemirror/view'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
 
 export function buildEditorTheme(dark: boolean) {
   const text = dark ? '#e8e8e0' : '#1a1a1a'
@@ -8,6 +10,9 @@ export function buildEditorTheme(dark: boolean) {
   const caret = dark ? '#60a5fa' : '#2563eb'
   const selection = dark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(37, 99, 235, 0.15)'
   const codeBg = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const codeBlockBg = dark ? 'rgba(255,255,255,0.055)' : 'rgba(17,24,39,0.055)'
+  const codeBlockBorder = dark ? 'rgba(255,255,255,0.11)' : 'rgba(17,24,39,0.11)'
+  const codeText = dark ? '#e6edf3' : '#111827'
   const blockquoteBorder = dark ? '#555' : '#d0ccc5'
   const hrBorder = dark ? '#444' : '#d0ccc5'
 
@@ -96,6 +101,32 @@ export function buildEditorTheme(dark: boolean) {
       borderRadius: '3px',
       padding: '1px 4px',
     },
+    '.cm-md-code-block': {
+      fontFamily: "'SF Mono', Consolas, 'Liberation Mono', 'Courier New', monospace",
+      fontSize: '0.82em',
+      lineHeight: '1.65',
+      color: codeText,
+      background: codeBlockBg,
+      borderLeft: `1px solid ${codeBlockBorder}`,
+      borderRight: `1px solid ${codeBlockBorder}`,
+      padding: '0 14px',
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'anywhere',
+    },
+    '.cm-md-code-block.cm-md-code-block-first': {
+      borderTop: `1px solid ${codeBlockBorder}`,
+      borderTopLeftRadius: '6px',
+      borderTopRightRadius: '6px',
+      paddingTop: '8px',
+      marginTop: '0.4em',
+    },
+    '.cm-md-code-block.cm-md-code-block-last': {
+      borderBottom: `1px solid ${codeBlockBorder}`,
+      borderBottomLeftRadius: '6px',
+      borderBottomRightRadius: '6px',
+      paddingBottom: '8px',
+      marginBottom: '0.4em',
+    },
     '.cm-md-link': {
       color: link,
       textDecoration: 'underline',
@@ -109,12 +140,10 @@ export function buildEditorTheme(dark: boolean) {
       fontStyle: 'italic',
       marginLeft: '0',
     },
-    '.cm-md-hr-widget': {
-      border: 'none',
-      borderTop: `1px solid ${hrBorder}`,
-      display: 'block',
-      margin: '0.5em 0',
-      width: '100%',
+    '.cm-md-hr-line': {
+      color: faint,
+      textDecoration: `line-through ${hrBorder}`,
+      textDecorationThickness: '1px',
     },
     '.cm-md-bullet': {
       color: faint,
@@ -153,4 +182,89 @@ export function buildEditorTheme(dark: boolean) {
       background: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
     },
   })
+}
+
+export function buildSyntaxHighlighting(dark: boolean) {
+  const keyword = dark ? '#ff9d8f' : '#b91c1c'
+  const string = dark ? '#9dd672' : '#15803d'
+  const number = dark ? '#f0c36a' : '#a16207'
+  const functionName = dark ? '#7dd3fc' : '#0369a1'
+  const typeName = dark ? '#c4b5fd' : '#7c3aed'
+  const propertyName = dark ? '#93c5fd' : '#1d4ed8'
+  const variableName = dark ? '#e6edf3' : '#111827'
+  const comment = dark ? '#8f9788' : '#6b7280'
+  const punctuation = dark ? '#c9c9bd' : '#4b5563'
+  const meta = dark ? '#a3a3a3' : '#6b7280'
+  const invalid = dark ? '#f87171' : '#dc2626'
+
+  return syntaxHighlighting(HighlightStyle.define([
+    { tag: tags.comment, color: comment, fontStyle: 'italic' },
+    {
+      tag: [
+        tags.keyword,
+        tags.operatorKeyword,
+        tags.controlKeyword,
+        tags.definitionKeyword,
+        tags.moduleKeyword,
+        tags.modifier,
+        tags.self,
+        tags.unit,
+      ],
+      color: keyword,
+      fontWeight: '600',
+    },
+    {
+      tag: [
+        tags.string,
+        tags.docString,
+        tags.character,
+        tags.attributeValue,
+        tags.regexp,
+        tags.escape,
+        tags.special(tags.string),
+      ],
+      color: string,
+    },
+    {
+      tag: [
+        tags.number,
+        tags.integer,
+        tags.float,
+        tags.bool,
+        tags.null,
+        tags.atom,
+        tags.literal,
+      ],
+      color: number,
+    },
+    {
+      tag: [
+        tags.definition(tags.variableName),
+        tags.function(tags.variableName),
+        tags.function(tags.propertyName),
+        tags.labelName,
+        tags.macroName,
+      ],
+      color: functionName,
+    },
+    { tag: [tags.className, tags.typeName, tags.namespace], color: typeName },
+    { tag: [tags.propertyName, tags.attributeName], color: propertyName },
+    { tag: tags.variableName, color: variableName },
+    {
+      tag: [
+        tags.operator,
+        tags.arithmeticOperator,
+        tags.logicOperator,
+        tags.compareOperator,
+        tags.bitwiseOperator,
+        tags.punctuation,
+        tags.bracket,
+        tags.separator,
+      ],
+      color: punctuation,
+    },
+    { tag: [tags.tagName, tags.heading, tags.link], color: functionName },
+    { tag: [tags.meta, tags.processingInstruction, tags.annotation], color: meta },
+    { tag: tags.invalid, color: invalid, textDecoration: 'underline wavy' },
+  ]))
 }
