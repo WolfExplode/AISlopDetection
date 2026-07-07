@@ -79,6 +79,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'heres-the-kicker':         { ruleWeight: 2.1, scoringMode: 'linear',      freeRate: 0 },
   'exemplar-cliche':          { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },
   'vague-attribution':        { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 1.0 },
+  'class-generalization':     { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
   'false-conclusion':         { ruleWeight: 1.9, scoringMode: 'diminishing', freeRate: 0 },
   'connector-addiction':      { ruleWeight: 1.9, scoringMode: 'threshold',   freeRate: 1.0 },
 
@@ -971,13 +972,21 @@ export const VAGUE_ATTRIBUTION_PHRASES: string[] = [
 //   ~0.35 Domain jargon — common in legitimate technical/medical writing
 export const EXEMPLAR_CLICHE_PHRASES: Record<string, number> = {
   'textbook example':      1.0,
+  'textbook evidence':     1.0,
+  'textbook case':         0.9,
   'classic example':       1.0,
   'prime example':         1.0,
   'perfect example':       1.0,
   'quintessential example': 1.0,
+  'canonical example':     0.6,
   'poster child':          1.0,
   'hallmark of':           1.0,
   'case in point':         1.0,
+  'masterclass in':        0.9,
+  'proof positive':        1.0,
+  // "a case study in hubris" is the tell; "published a case study in Nature" is a
+  // literal FP we accept at reduced weight — no surface guard separates them.
+  'case study in':         0.6,
   'gold standard':         0.35,
 }
 

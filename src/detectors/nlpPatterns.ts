@@ -832,3 +832,121 @@ export function detectTripleFragment(text: string): Violation[] {
 
   return violations
 }
+
+// ── Class generalization ──────────────────────────────────────────────────────
+//
+// "Real experts hedge precision, not intensity." / "Great teams argue about
+// ideas, not people." — an aphoristic normative claim about how an entire class
+// of people behaves. The tell is specifically about *people*: "Serious injuries
+// require care" is an ordinary factual claim. So the class noun must look
+// agentive (-ers/-ors/-ists/-ians plurals, plus a small explicit set), with a
+// skip-list for non-agent nouns sharing those suffixes ("real numbers", "true
+// colors", "smart speakers"). Compromise then confirms a present-tense verb
+// follows — "Great writers of the nineteenth century" (preposition) and
+// "Experienced developers built it" (past-tense narrative) do not fire. Quoted
+// sentences never fire: the quote mark breaks the sentence-initial match.
+
+const CLASS_GEN_RE = /^(Real|True|Genuine|Actual|Serious|Great|Good|Smart|Strong|Seasoned|Experienced|Successful|Effective)\s+([a-z]+)\s+((?:(?:never|always|rarely|seldom|often|usually|don[\u2019']t|do|won[\u2019']t|can[\u2019']t)\s+)?[a-z\u2019']+)/
+
+const CLASS_GEN_PREFILTER_RE = /\b(Real|True|Genuine|Actual|Serious|Great|Good|Smart|Strong|Seasoned|Experienced|Successful|Effective)\s/
+
+const CLASS_GEN_AGENT_RE = /^[a-z]+(?:ers|ors|ists|ians|eurs)$/
+// Person-nouns without an agentive suffix ("experts" ends in -ts, not -ers).
+const CLASS_GEN_EXTRA_NOUNS = new Set([
+  'people', 'professionals', 'pros', 'teams', 'companies', 'organizations',
+  'men', 'women', 'experts', 'analysts', 'executives', 'athletes', 'coaches',
+  'colleagues', 'veterans', 'champions', 'adults', 'parents', 'students',
+  'employees', 'humans', 'kids', 'chefs', 'pilots', 'nurses', 'academics',
+  'salespeople', 'geniuses', 'amateurs', 'novices', 'beginners',
+])
+// Nouns with an agentive-looking suffix that usually denote things, quantities,
+// or fixed compounds ("real numbers", "great powers", "smart speakers/meters").
+const CLASS_GEN_SKIP_NOUNS = new Set([
+  'numbers', 'members', 'manners', 'letters', 'matters', 'papers', 'answers',
+  'offers', 'orders', 'corners', 'quarters', 'waters', 'powers', 'wonders',
+  'fingers', 'shoulders', 'colors', 'colours', 'doors', 'floors', 'factors',
+  'errors', 'sensors', 'motors', 'mirrors', 'horrors', 'flavors', 'flavours',
+  'favors', 'favours', 'honors', 'honours', 'rumors', 'rumours', 'computers',
+  'containers', 'centers', 'centres', 'chapters', 'characters', 'borders',
+  'layers', 'others', 'speakers', 'meters', 'monitors', 'processors',
+  'printers', 'routers',
+])
+
+// Authenticity adjectives (real/true/genuine/actual) are the strongest form of
+// the tell — they gatekeep who counts as a member of the class. "Good" is the
+// weakest: "Good doctors listen" shades into ordinary advice.
+function classGenWeight(adj: string): number {
+  const a = adj.toLowerCase()
+  if (a === 'real' || a === 'true' || a === 'genuine' || a === 'actual') return 1.0
+  if (a === 'good') return 0.65
+  return 0.8
+}
+
+export function detectClassGeneralization(text: string): Violation[] {
+  if (!CLASS_GEN_PREFILTER_RE.test(text)) return []
+
+  const violations: Violation[] = []
+  const parts = text.split(/(\n\n+)/)
+  let docPos = 0
+
+  for (let pi = 0; pi < parts.length; pi++) {
+    const part = parts[pi]
+    if (pi % 2 === 1) { docPos += part.length; continue }
+
+    const paraOffset = docPos
+    docPos += part.length
+
+    if (!CLASS_GEN_PREFILTER_RE.test(part)) continue
+
+    for (const s of splitSentencesWithOffsets(part)) {
+      const leadWs = s.text.length - s.text.trimStart().length
+      const lead = s.text.slice(leadWs)
+      const m = CLASS_GEN_RE.exec(lead)
+      if (!m) continue
+
+      const noun = m[2]
+      if (CLASS_GEN_SKIP_NOUNS.has(noun)) continue
+      if (!CLASS_GEN_AGENT_RE.test(noun) && !CLASS_GEN_EXTRA_NOUNS.has(noun)) continue
+
+      // Confirm the candidate is a present-tense verb (copula included). Term
+      // offsets from compromise are positions in `lead`, so char positions from
+      // the regex match can be located directly.
+      const termJsons = (nlp(lead).terms().json({ offset: true, tags: true }) as MatchJson[])
+        .flatMap(p => p.terms ?? [])
+      const isPresentVerbAt = (charPos: number): boolean => {
+        const term = termJsons.find(
+          t => t.offset && t.offset.start <= charPos && charPos < t.offset.start + t.offset.length,
+        )
+        if (!term) return false
+        return term.tags.includes('Verb') && !term.tags.includes('PastTense') && !term.tags.includes('Gerund')
+      }
+
+      const verbTokens = m[3].split(/\s+/)
+      const lastToken = verbTokens[verbTokens.length - 1]
+      let endInLead = m[0].length
+      let ok = isPresentVerbAt(m[0].length - lastToken.length)
+
+      // "Great leaders do this before every meeting." — the intervener slot
+      // consumed the actual verb ("do"); retry with it and shorten the span.
+      if (!ok && verbTokens.length === 2) {
+        const intervenerStart = m[0].length - m[3].length
+        if (isPresentVerbAt(intervenerStart)) {
+          ok = true
+          endInLead = intervenerStart + verbTokens[0].length
+        }
+      }
+      if (!ok) continue
+
+      const start = paraOffset + s.start + leadWs
+      violations.push({
+        ruleId: 'class-generalization',
+        startIndex: start,
+        endIndex: start + endInLead,
+        matchedText: lead.slice(0, endInLead),
+        instanceWeight: classGenWeight(m[1]),
+      })
+    }
+  }
+
+  return violations
+}

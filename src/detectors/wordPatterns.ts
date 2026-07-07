@@ -1010,6 +1010,35 @@ export function detectExemplarCliche(text: string): Violation[] {
       idx = lower.indexOf(phrase, idx + 1)
     }
   }
+
+  // "Exhibit A" — rhetorical canonicity claim. Capital A required (the courtroom
+  // usage is always capitalized), and the lookahead demands of/for/in or trailing
+  // punctuation so "fish exhibit a preference" never matches.
+  const exhibitARe = /\b[Ee]xhibit A\b(?=\s+(?:of|for|in)\b|\s*[.,:;!?)—–]|\s*$)/g
+  let m: RegExpExecArray | null
+  while ((m = exhibitARe.exec(text)) !== null) {
+    violations.push({
+      ruleId: 'exemplar-cliche',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+      instanceWeight: 0.9,
+    })
+  }
+
+  // "(straight) out of the X playbook" / "from the X playbook" — borrowed-authority
+  // frame with a variable middle, so it can't live in the substring list.
+  const playbookRe = /\b(?:out of|from) the [\w\u2019']+(?:[ -][\w\u2019']+){0,3} playbook\b/gi
+  while ((m = playbookRe.exec(text)) !== null) {
+    violations.push({
+      ruleId: 'exemplar-cliche',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+      instanceWeight: 1.0,
+    })
+  }
+
   return violations
 }
 

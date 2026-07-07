@@ -1225,6 +1225,36 @@ describe('detectExemplarCliche', () => {
   it('is case-insensitive', () => {
     assertFires(detectExemplarCliche('A TEXTBOOK EXAMPLE of what not to do.'), 'exemplar-cliche')
   })
+  it('flags "textbook evidence"', () => {
+    assertFires(detectExemplarCliche('His response is textbook evidence of defensive management.'), 'exemplar-cliche')
+  })
+  it('flags "masterclass in"', () => {
+    assertFires(detectExemplarCliche('The rollout was a masterclass in poor communication.'), 'exemplar-cliche')
+  })
+  it('flags "case study in"', () => {
+    assertFires(detectExemplarCliche('The launch was a case study in hubris.'), 'exemplar-cliche')
+  })
+  it('flags "proof positive"', () => {
+    assertFires(detectExemplarCliche('It is proof positive that the strategy failed.'), 'exemplar-cliche')
+  })
+  it('flags "Exhibit A for"', () => {
+    assertFires(detectExemplarCliche('Consider this Exhibit A for the decline of local news.'), 'exemplar-cliche')
+  })
+  it('flags "Exhibit A" at sentence end', () => {
+    assertFires(detectExemplarCliche('The quarterly numbers are Exhibit A.'), 'exemplar-cliche')
+  })
+  it('does not flag literal "exhibit a" as verb + article', () => {
+    assertSilent(detectExemplarCliche('Fish exhibit a preference for shaded water.'), 'exemplar-cliche')
+  })
+  it('flags "straight out of the X playbook"', () => {
+    assertFires(detectExemplarCliche('That move is straight out of the authoritarian playbook.'), 'exemplar-cliche')
+  })
+  it('flags "from the X playbook" with a multi-word middle', () => {
+    assertFires(detectExemplarCliche('It reads like a page from the growth hacking playbook.'), 'exemplar-cliche')
+  })
+  it('does not flag a literal team playbook', () => {
+    assertSilent(detectExemplarCliche('The coach updated the team playbook before the season.'), 'exemplar-cliche')
+  })
 })
 
 // ── Chatbot Artifact ───────────────────────────────────────────────────────

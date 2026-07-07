@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectTripleFragment, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation } from '../nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectTripleFragment, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation, detectClassGeneralization } from '../nlpPatterns'
 import { runClientDetectors } from '../index'
 import type { Violation } from '../../types'
 
@@ -915,5 +915,78 @@ describe('detectFragmentNegation', () => {
   it('does not flag when S1 is too long to be a fragment', () => {
     const vs = detectFragmentNegation('Not the version you carefully polished over three weeks of revision. The raw one.')
     expect(vs.some(v => v.ruleId === 'fragment-negation')).toBe(false)
+  })
+})
+
+// ── detectClassGeneralization ─────────────────────────────────────────────────
+
+describe('detectClassGeneralization', () => {
+  const fires = (text: string) =>
+    expect(detectClassGeneralization(text).some(v => v.ruleId === 'class-generalization')).toBe(true)
+  const silent = (text: string) =>
+    expect(detectClassGeneralization(text)).toHaveLength(0)
+
+  it('flags "Real experts hedge precision, not intensity."', () => {
+    fires('Real experts hedge precision, not intensity.')
+  })
+
+  it('flags "Great teams argue about ideas, not people."', () => {
+    fires('Great teams argue about ideas, not people.')
+  })
+
+  it('flags "Good writers cut their darlings."', () => {
+    fires('Good writers cut their darlings.')
+  })
+
+  it('flags with an intervening adverb: "Smart investors never chase momentum."', () => {
+    fires('Smart investors never chase momentum.')
+  })
+
+  it('flags curly-apostrophe negation: "Real writers don’t wait for inspiration."', () => {
+    fires('Real writers don’t wait for inspiration.')
+  })
+
+  it('flags copula generalizations: "Great teams are boring."', () => {
+    fires('Great teams are boring.')
+  })
+
+  it('flags "do" as the verb when the intervener slot consumed it', () => {
+    fires('Great leaders do this before every meeting.')
+  })
+
+  it('flags mid-document sentence-initial generalizations', () => {
+    fires('The report took months. Real experts hedge precision, not intensity. We shipped anyway.')
+  })
+
+  it('does not flag skip-list nouns: "Real numbers are uncountable."', () => {
+    silent('Real numbers are uncountable.')
+  })
+
+  it('does not flag fixed compounds: "True colors emerge under pressure."', () => {
+    silent('True colors emerge under pressure.')
+  })
+
+  it('does not flag non-agent nouns: "Serious injuries require immediate attention."', () => {
+    silent('Serious injuries require immediate attention.')
+  })
+
+  it('does not flag "Real estate prices climbed again."', () => {
+    silent('Real estate prices climbed again.')
+  })
+
+  it('does not flag when a preposition follows the noun', () => {
+    silent('Great writers of the nineteenth century faced censorship.')
+  })
+
+  it('does not flag past-tense narrative: "Experienced developers built this system."', () => {
+    silent('Experienced developers built this system last year.')
+  })
+
+  it('does not flag mid-sentence mentions', () => {
+    silent('She admires how real experts hedge their claims.')
+  })
+
+  it('does not flag quoted speech', () => {
+    silent('"Real experts hedge," she said with a shrug.')
   })
 })
