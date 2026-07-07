@@ -55,8 +55,8 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'parenthetical-qualifier':  { ruleWeight: 2.9, scoringMode: 'diminishing',   freeRate: 0, diminishingFactor: 0.85},
   'question-then-answer':     { ruleWeight: 1.6, scoringMode: 'threshold',   freeRate: 1.5 },
   'false-range':              { ruleWeight: 2.3, scoringMode: 'threshold',   freeRate: 0.5 },
-  'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.0 },
-  'em-dash-overuse':          { ruleWeight: 1.4, scoringMode: 'diminishing',   freeRate: 1.0, diminishingFactor: 0.95 },
+  'colon-elaboration':        { ruleWeight: 1.3, scoringMode: 'threshold',   freeRate: 1.5 },
+  'em-dash-overuse':          { ruleWeight: 1.4, scoringMode: 'diminishing',   freeRate: 2.0, diminishingFactor: 0.93 },
   'triple-fragment':          { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 0.5 },
   'triple-construction':      { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 1.5 },
 
@@ -94,7 +94,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'stacked-intensifiers':     { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
 
   // ── Structural ──────────────────────────────────────────────────────────────
-  'slop-cluster':             { ruleWeight: 1.8, scoringMode: 'linear',      freeRate: 0 },
+  'slop-cluster':             { ruleWeight: 1.8, scoringMode: 'diminishing', freeRate: 0, diminishingFactor: 0.94},
   'fractal-summaries':        { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
   'pivot-paragraph':          { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
   'one-point-dilution':       { ruleWeight: 3.0, scoringMode: 'linear',      freeRate: 0 },
@@ -102,7 +102,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'bold-first-bullets':       { ruleWeight: 2.4, scoringMode: 'threshold',   freeRate: 1.0 },
   'inline-emphasis':          { ruleWeight: 1.1, scoringMode: 'diminishing',   freeRate: 1.5, diminishingFactor: 0.94},
   'listicle-instinct':        { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
-  'unicode-decoration':       { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
+  'unicode-decoration':       { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 1.0 },
   'dramatic-fragment':        { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
   'paired-negation':          { ruleWeight: 2.2, scoringMode: 'threshold',   freeRate: 0.5 },
   'reality-claim':            { ruleWeight: 2.0, scoringMode: 'threshold',   freeRate: 0.5 },
@@ -376,6 +376,7 @@ export const METAPHOR_CRUTCHES: Record<string, number> = {
   'drill down':                  0.70,
   'tapestry of':                 0.70,
   'weave together':              0.60,
+  'swiss army knife':            0.70,
 }
 
 export const FALSE_CONCLUSION_PHRASES: Record<string, number> = {

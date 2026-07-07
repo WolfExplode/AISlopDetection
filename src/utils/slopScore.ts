@@ -42,6 +42,7 @@ function applyDiminishing(weight: number, excessCount: number): number {
 // Geometric decay: each successive instance contributes factor× the previous.
 // Sum of geometric series: ruleWeight × avgInstanceWeight × (1 − factor^count) / (1 − factor).
 // Caps naturally at ruleWeight × avgInstanceWeight / (1 − factor) as count → ∞.
+// count may be fractional (partially past the freeRate allowance); Math.pow handles it.
 function applyGeometricDiminishing(
   ruleWeight: number,
   avgInstanceWeight: number,
@@ -123,7 +124,10 @@ export function computeSlopScore(
     if (rule.scoringMode === 'diminishing' && rule.diminishingFactor !== undefined) {
       const count = countByRule.get(ruleId) ?? 0
       const avgInstanceWeight = count > 0 ? totalWeight / count : 0
-      contribution = applyGeometricDiminishing(ruleWeight, avgInstanceWeight, count, rule.diminishingFactor)
+      // Convert the excess weight (past the freeRate allowance) back into an
+      // instance count so the geometric series only sums the non-free instances.
+      const excessCount = avgInstanceWeight > 0 ? excessWeight / avgInstanceWeight : 0
+      contribution = applyGeometricDiminishing(ruleWeight, avgInstanceWeight, excessCount, rule.diminishingFactor)
     } else if (rule.scoringMode === 'diminishing') {
       contribution = applyDiminishing(ruleWeight, excessWeight)
     } else {

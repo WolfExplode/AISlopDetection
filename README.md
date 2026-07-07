@@ -45,7 +45,7 @@ Vocabulary drift. The n-gram lists (SLOP_TRIGRAMS/SLOP_BIGRAMS, the eqbench word
 
 What may cause reader fatigue now, may not be true in 10 years time. Therefore, this codebase cannot account for the evolution of slop.
 
-
+Since this detector is only made for natural-language prose (essays, novels, etc.), it may over-penalize text with heavy formatting.
 
 
 ## Why would we want to detect slop?
