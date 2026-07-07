@@ -40,6 +40,20 @@ _Avoid_: Slop percentage, AI score
 The four-bucket read of a Slop Score: Clean, Moderate, Heavy, Slop. The top bucket reuses the umbrella term "Slop" deliberately — a document rated Slop has crossed from "has slop in it" to "is, itself, slop."
 _Avoid_: Grade, tier (tier is reserved for detection tier, client-side vs semantic)
 
+## Frequency
+
+**Corpus Frequency**:
+How common a word is in general English, on the Zipf scale (from the wordfreq dataset). Used to judge whether a document over-uses a word relative to normal English.
+_Avoid_: Word frequency (ambiguous with Document Frequency)
+
+**Document Frequency**:
+How many times a term occurs within the user's document itself, matched by head noun with inflections folded ("volume knob" recurs when "knobs" appears elsewhere; "dial" does not count). A neutral measurement — each Rule interprets it its own way.
+_Avoid_: Frequency (unqualified), occurrence count
+
+**Hapax Guard**:
+A suppression built on Document Frequency: a Violation survives only when its term occurs nowhere in the document outside the matched span. Recurrence anywhere — even once, paragraphs away — reads as the document being natively in that term's domain (literal vocabulary), while a one-off term was imported for effect. Applies only to Rules that flag *imported* vocabulary (a metaphor vehicle, a scare-quoted term later adopted unquoted); never to Rules that flag *invented* vocabulary (`invented-concept-label`) — recurrence of a coined term is not exculpatory. Recurring imports belong to document-tier recurrence Rules like `dead-metaphor`.
+_Avoid_: Uniqueness check, one-off filter, hapax legomenon (the full jargon; "hapax" alone is the project term)
+
 ## Detection tiers
 
 **Client-side Rule**:

@@ -11,6 +11,8 @@
 import nlp from './nlpInstance'
 import type { Violation } from '../types'
 import { VERB_INTENSIFIERS, ADJECTIVE_INTENSIFIERS, ADJECTIVE_PERMITTED_FOLLOWING, CONTEXT_SENSITIVE_ADVERBS } from '../scoring.config'
+import { CONCRETE_NOUNS } from './concreteNouns'
+import { isHapax } from '../utils/docFrequency'
 
 // compromise .json({offset:true, tags:true}) shapes
 interface TermJson {
@@ -451,7 +453,10 @@ export function detectContextualSlop(text: string): Violation[] {
 
 function splitSentencesWithOffsets(text: string): Array<{ text: string; start: number }> {
   const sentences: Array<{ text: string; start: number }> = []
-  const splitRe = /(?<=[.!?])\s+(?=[A-Z"'])/g
+  // A lone newline is a sentence boundary too (the contenteditable editor emits
+  // single \n per line break, and lines often lack terminal punctuation) —
+  // consistent with extractSentenceAt, which bounds sentences by [.!?\n].
+  const splitRe = /(?<=[.!?])\s+(?=[A-Z"'])|\n+/g
   let prev = 0
   let m: RegExpExecArray | null
   while ((m = splitRe.exec(text)) !== null) {
@@ -944,6 +949,104 @@ export function detectClassGeneralization(text: string): Violation[] {
         endIndex: start + endInLead,
         matchedText: lead.slice(0, endInLead),
         instanceWeight: classGenWeight(m[1]),
+      })
+    }
+  }
+
+  return violations
+}
+
+// ── Decorative metaphor ───────────────────────────────────────────────────────
+//
+// "It's a volume knob stuck at max." — an anaphoric copular sentence whose
+// predicate head noun is a concrete object with a post-nominal "twist" modifier
+// (participle or preposition phrase). The concreteness mismatch is the metaphor
+// signal: an abstract tenor ("it" pointing at the previous claim) predicated as
+// a concrete vehicle. Four gates, all required:
+//
+//   1. Frame — sentence-initial It/That/This + 's/is + a/an. Named subjects
+//      ("The gearbox is a bucket…") are out of scope for v1.
+//   2. Concreteness — the noun phrase's head noun is in CONCRETE_NOUNS
+//      (Brysbaert norms, Conc.M >= 4.2). "It's an idea wrapped in jargon"
+//      never fires; "idea" scores 1.61.
+//   3. Twist — a participle (-ed/-ing or irregular: stuck, worn, torn…) or a
+//      preposition phrase follows the noun. Separates the metaphor shape from
+//      a terse literal answer ("It's a volume knob."). Digits in the twist
+//      skip the match ("a house built in 1923" is a date, not a metaphor).
+//   4. Hapax Guard (utils/docFrequency.ts) — the head noun occurs nowhere else
+//      in the document. Recurrence means the document is natively in that
+//      domain ("knob" elsewhere → hardware prose → literal). A recurring
+//      vehicle is dead-metaphor's jurisdiction, not this rule's.
+//
+// Sentences containing double quotes never fire (dialogue: "It's a volume knob
+// stuck at max," she said — a literal answer, not a rhetorical restatement).
+// Known miss: vehicles whose head noun scores below the concreteness cutoff
+// ("smoke detector" — detector is 3.7).
+
+// Frame prefix: subject + copula + optional degree adverb + article. The rest
+// of the sentence is token-walked in the detector \u2014 a single regex cannot split
+// NP core from twist correctly, because greedy backtracking steals participles
+// into the core ("a megaphone welded shut" would parse core="megaphone welded",
+// head="welded", and fail the concreteness gate).
+const DECOR_FRAME_RE = /^(?:It|That|This)(?:[\u2019']s|\s+is)\s+(?:just\s+|basically\s+|essentially\s+|really\s+|only\s+|simply\s+|effectively\s+)?an?\s+([^\n]+)$/
+
+const DECOR_TWIST_STARTER_RE = /^(?:with|without|on|over|under|inside|behind|full|made|set|hung|stuck|worn|torn|shut|cut|held|kept|left|lost|built|bent|gone|thrown|drawn|blown|sworn|spun|wound|bound|[a-z]{3,}(?:ed|ing))$/
+
+const DECOR_CORE_WORD_RE = /^[a-z]+(?:-[a-z]+)*$/
+
+export function detectDecorativeMetaphor(text: string): Violation[] {
+  if (!/\b(?:It|That|This)(?:[\u2019']s|\s+is)\s/.test(text)) return []
+
+  const violations: Violation[] = []
+  const parts = text.split(/(\n\n+)/)
+  let docPos = 0
+
+  for (let pi = 0; pi < parts.length; pi++) {
+    const part = parts[pi]
+    if (pi % 2 === 1) { docPos += part.length; continue }
+
+    const paraOffset = docPos
+    docPos += part.length
+
+    for (const s of splitSentencesWithOffsets(part)) {
+      const leadWs = s.text.length - s.text.trimStart().length
+      const lead = s.text.slice(leadWs).replace(/\s+$/, '')
+      if (/["“”]/.test(lead)) continue          // dialogue, not rhetoric
+      if (lead.split(/\s+/).length > 16) continue          // the capper rhythm is short
+
+      const m = DECOR_FRAME_RE.exec(lead)
+      if (!m) continue
+
+      // Token walk: try each head position 0..2. A hit needs the head token in
+      // CONCRETE_NOUNS *and* the next token to open a twist — evaluating both
+      // at the same split point is what a single regex could not do.
+      //   "a volume knob stuck at max": volume fails concreteness → knob+stuck ✓
+      //   "a megaphone welded shut":    megaphone+welded ✓ at position 0
+      const tokens = m[1].split(/\s+/)
+      let head = ''
+      let twist = ''
+      for (let i = 0; i <= 2 && i < tokens.length - 1; i++) {
+        if (!DECOR_CORE_WORD_RE.test(tokens[i])) break     // punctuation/capital ends the NP
+        const starter = tokens[i + 1].replace(/[^a-z-]+$/, '')
+        if (CONCRETE_NOUNS.has(tokens[i]) && DECOR_TWIST_STARTER_RE.test(starter)) {
+          head = tokens[i]
+          twist = tokens.slice(i + 1).join(' ')
+          break
+        }
+      }
+      if (!head) continue
+      if (/\d/.test(twist)) continue                       // dates, measurements
+
+      const start = paraOffset + s.start + leadWs
+      const end = start + lead.length
+      if (!isHapax(text, head, start, end)) continue       // vehicle is native vocabulary
+
+      violations.push({
+        ruleId: 'decorative-metaphor',
+        startIndex: start,
+        endIndex: end,
+        matchedText: lead,
+        instanceWeight: 0.9,
       })
     }
   }

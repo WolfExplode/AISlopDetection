@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectTripleFragment, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation, detectClassGeneralization } from '../nlpPatterns'
+import { detectContextualSlop, detectVerbIntensifierForms, detectTripleConstruction, detectTripleFragment, detectShortHookParagraph, detectNegationPivotStructural, detectFragmentNegation, detectClassGeneralization, detectDecorativeMetaphor } from '../nlpPatterns'
 import { runClientDetectors } from '../index'
 import type { Violation } from '../../types'
 
@@ -988,5 +988,72 @@ describe('detectClassGeneralization', () => {
 
   it('does not flag quoted speech', () => {
     silent('"Real experts hedge," she said with a shrug.')
+  })
+})
+
+// ── detectDecorativeMetaphor ──────────────────────────────────────────────────
+
+describe('detectDecorativeMetaphor', () => {
+  const fires = (text: string) =>
+    expect(detectDecorativeMetaphor(text).some(v => v.ruleId === 'decorative-metaphor')).toBe(true)
+  const silent = (text: string) =>
+    expect(detectDecorativeMetaphor(text)).toHaveLength(0)
+
+  it('flags the canonical benchmark sentence', () => {
+    fires('The model rewards confidence over accuracy. It’s a volume knob stuck at max.')
+  })
+
+  it('flags with straight apostrophe', () => {
+    fires("The plan changes nothing. It's a treadmill dressed up as a ladder.")
+  })
+
+  it('flags "That is" copula form', () => {
+    fires('The apology came years too late. That is a bridge burned long ago.')
+  })
+
+  it('flags a preposition-phrase twist', () => {
+    fires('The committee reviews everything and changes nothing. It’s a rubber stamp with extra steps.')
+  })
+
+  it('flags with a degree adverb', () => {
+    fires('The feature ships disabled. It’s basically a megaphone welded shut.')
+  })
+
+  it('reports the whole sentence as the span', () => {
+    const text = 'The model rewards confidence. It’s a volume knob stuck at max. We knew.'
+    const v = detectDecorativeMetaphor(text).find(x => x.ruleId === 'decorative-metaphor')
+    expect(v?.matchedText).toBe('It’s a volume knob stuck at max.')
+  })
+
+  it('hapax guard: vehicle recurring elsewhere disarms', () => {
+    silent('The amp has three knobs on the front. It’s a volume knob stuck at max.')
+  })
+
+  it('hapax guard: inflected recurrence disarms', () => {
+    silent('It’s a volume knob stuck at max. We replaced both knobs last week.')
+  })
+
+  it('does not flag abstract head nouns', () => {
+    silent('The pitch failed. It’s an idea wrapped in jargon.')
+  })
+
+  it('does not flag without a twist modifier', () => {
+    silent('What does the dial do? It’s a volume knob.')
+  })
+
+  it('does not flag digits in the twist (dates, measurements)', () => {
+    silent('We toured the property. It’s a house built in 1923.')
+  })
+
+  it('does not flag dialogue', () => {
+    silent('"It’s a volume knob stuck at max," she said.')
+  })
+
+  it('does not flag named subjects', () => {
+    silent('The gearbox is a bucket bolted to a prayer.')
+  })
+
+  it('does not flag mid-sentence occurrences', () => {
+    silent('She joked that maybe it’s a volume knob stuck at max.')
   })
 })

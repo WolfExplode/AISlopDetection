@@ -89,6 +89,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'broader-implications':     { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
   'invented-concept-label':   { ruleWeight: 2.6, scoringMode: 'threshold',   freeRate: 0.5 },
   'metaphor-crutch':          { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
+  'decorative-metaphor':      { ruleWeight: 2.8, scoringMode: 'linear',      freeRate: 0 },
   'era-opener':               { ruleWeight: 2.9, scoringMode: 'threshold',   freeRate: 0.5 },
   'stacked-intensifiers':     { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
 

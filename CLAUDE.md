@@ -8,7 +8,7 @@ Web app that detects LLM-generated prose patterns in text and highlights them wi
 - **pnpm** — use pnpm for all package operations, never npm or yarn
 - `pnpm dev` — dev server on localhost:5173
 - `pnpm build` — type-check + build to `dist/`
-- `pnpm test` — Vitest unit tests (589 tests, all client-side detectors)
+- `pnpm test` — Vitest unit tests (622 tests, all client-side detectors)
 
 ## Architecture
 
@@ -24,6 +24,7 @@ src/
     wordPatterns.ts          # All client-side detectors (word lists, regex, sentence analysis)
     nlpPatterns.ts           # NLP-assisted detectors using compromise (context-sensitive, sentence-chunked)
     llmDetectors.ts          # Claude API calls for semantic detections (two-tier)
+    concreteNouns.ts         # GENERATED: ~5k concrete-object nouns (Brysbaert norms ≥4.2); regenerate via scripts/generate-concrete-nouns.mjs
   components/
     Toolbar.tsx              # Top bar: branding, API key management, LLM run button
     Sidebar.tsx              # Right panel: violation cards with counts and eye toggles
@@ -32,6 +33,7 @@ src/
     useHashText.ts           # Syncs text to URL hash via replaceState (debounced 600ms)
   utils/
     buildHighlightedHTML.ts  # Converts text + violations → HTML string with <mark> spans
+    docFrequency.ts          # Document Frequency + Hapax Guard (CONTEXT.md § Frequency); full contract in its header
 ```
 
 ## Detection tiers
@@ -59,9 +61,9 @@ Each rule in `src/rules.ts` has:
 
 ## Rules count
 
-- **Client-side rules:** 39
+- **Client-side rules:** 40
 - **LLM-required rules:** 12 (9 sentence-level + 3 document-level)
-- **Total:** 51
+- **Total:** 52
 
 ## Adding a new rule
 
@@ -75,6 +77,7 @@ Each rule in `src/rules.ts` has:
 - **`dramatic-fragment`**: Any paragraph with ≤4 words fires, including intentional short paragraphs in prose. High-precision but accept occasional FPs in minimalist writing.
 - **`class-generalization`** (in nlpPatterns.ts): Sentence-initial `[class adjective] + [agent noun] + [present verb]` ("Real experts hedge…"). The noun must look like a person: agentive suffix (-ers/-ors/-ists/-ians/-eurs) or an explicit person-noun set (`CLASS_GEN_EXTRA_NOUNS` — needed because "experts" has no agentive suffix). Non-agent suffix nouns are skip-listed (`CLASS_GEN_SKIP_NOUNS`: "real numbers", "great powers", "smart speakers"). Compromise confirms a present-tense verb — past-tense narrative and "of/who" continuations don't fire. Remaining FP surface: factual present-tense claims about groups ("Real users complain about load times" in a UX report). Legitimate-but-lost: person nouns without suffix coverage ("Great mentors" fires, "Great mentees" doesn't — accept misses over FPs).
 - **`exemplar-cliche`** "case study in" branch: "published a case study in Nature" is a literal FP with no surface guard — carried at reduced instanceWeight (0.6) instead.
+- **`decorative-metaphor`** (in nlpPatterns.ts): Anaphoric copular metaphor sentences ("It's a volume knob stuck at max"). Four gates: It/That/This frame, head noun in `CONCRETE_NOUNS` (generated, Brysbaert concreteness ≥4.2), a participle/preposition twist after the noun, and the Hapax Guard (vehicle noun recurring anywhere else in the doc suppresses — see `utils/docFrequency.ts`). Digits in the twist and any double quote in the sentence also suppress. Remaining FP surface: literal anaphoric descriptions of one-off objects outside dialogue ("It's a wedding planned for June" in a doc that never mentions the wedding again). Known misses: vehicles below the concreteness cutoff ("smoke detector" — detector scores 3.7), hyphenated heads ("band-aid" — the norms are single-word), and named subjects ("The gearbox is a bucket bolted to a prayer" — out of scope for v1).
 - **`concept-label`**: Matches `[content word] + [abstract suffix noun]` for ~35 suffix nouns (paradox, trap, treadmill, fatigue, tax, theater, syndrome, loop…) defined in `CONCEPT_LABEL_NOUNS` in wordPatterns.ts. A determiner/preposition before the noun never fires ("falls into the trap", "in limbo" — see `CONCEPT_LABEL_SKIP_PRECEDING`), and per-noun allowlists skip established literal compounds ("income tax", "chronic fatigue", "feedback loop", "movie theater"). Established-but-slop-adjacent coinages ("scope creep", "imposter syndrome") still fire by design; the rule targets LLM prose inflation. Remaining FP surface: literal compounds not on an allowlist ("castle moat", "suffered whiplash") and domain-heavy writing (medical "X syndrome", finance "X debt").
 - **`superficial-analysis`**: The `, [participle] its/the/their/this [noun]` pattern can occasionally match legitimate summarizing phrases. `canRemove: true` lets users dismiss easily.
 - **`triple-construction`**: Named-entity appositives are suppressed via a `#ProperNoun` check ("Dave Burwick, former CEO of Boston Beer, and Frank Luntz" does not fire). Common-noun appositives ("Fermentation, a necessary step in brewing, and aging…") remain false positives — every surface heuristic (article presence, item length) has clear counterexamples, and fixing them requires semantic understanding beyond compromise/two.
@@ -83,6 +86,7 @@ Each rule in `src/rules.ts` has:
 
 ## Key constraints on detectors
 
+- **Hapax Guard: imported vocabulary only.** (Terms defined in CONTEXT.md § Frequency.) A Violation whose term recurs anywhere else in the document — head-noun matched, inflections folded, doc-wide — is suppressed, because recurrence means the document is natively in that term's domain ("knob" elsewhere → "It's a volume knob stuck at max" is literal). Apply it only to rules that flag *imported* vocabulary (metaphor vehicles; scare-quoted terms later adopted unquoted). Never apply it to rules that flag *invented* vocabulary — recurrence of a coined label ("the attention paradox" ×5) is not exculpatory, so guarding `invented-concept-label` would create silent false negatives on the worst documents. A *recurring* imported vehicle is `dead-metaphor`'s jurisdiction (document-tier), not a client rule's.
 - **Paragraph boundaries matter.** Detectors that operate on sentence pairs must use `splitParagraphs()` first, then split by sentence within each paragraph. Never pair sentences across `\n\n` boundaries.
 - **Q→A: answer must be short, and dialogue never fires.** The question-then-answer detector requires the answer sentence to be ≤120 chars, and skips pairs where either sentence contains a double quote or opens with any quote character (quoted questions/answers are speech, not the rhetorical tell).
 - **Modal verbs `should`/`would` are not hedges.** Only `might`, `could`, `may` count as hedging modals in the hedge stack detector.
