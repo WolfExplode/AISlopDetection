@@ -763,6 +763,16 @@ export function detectTripleConstruction(text: string): Violation[] {
     // Also covers "and as reported/stated/noted" (C starting with "as").
     const CLAUSE_OPENER = /^(?:which|that|who|whom|whose|where|when|because|although|since|though|while|as)\b/i
 
+    // Comma-bracketed discourse markers are never list items. A fronted
+    // parenthetical supplies a fake "first item" to the regex:
+    //   "In humid air, on the other hand, the atmosphere is packed with
+    //    moisture, and evaporation slows right down."
+    // matches with A="on the other hand" — but the sentence is a compound
+    // clause, not a list. Exact-match only, so a real item that merely
+    // contains one of these phrases still fires.
+    const DISCOURSE_MARKER = /^(?:on the other hand|on one hand|for example|for instance|in fact|of course|in other words|in short|by contrast|in contrast|at the same time|after all|as a result|in practice|in theory|in reality|meanwhile|however|moreover|furthermore|that said|to be fair|as it turns out)$/i
+    const isDiscourseMarker = (t: string) => DISCOURSE_MARKER.test(t.trim())
+
     // "A, B, and C" — Oxford comma form; all items up to 70 chars
     // Guard: skip if B or C starts with a clause opener
     // (e.g. "X, which does Y, and Z" or "Name, stated, and as reported by...")
@@ -772,6 +782,7 @@ export function detectTripleConstruction(text: string): Violation[] {
     const oxfordRe = /([^,\n]{3,70}),\s+([^,\n]{3,70}),\s+(?:and|or)\s+([^,.!?\n]{3,70})/gi
     while ((m = oxfordRe.exec(chunk)) !== null) {
       if (CLAUSE_OPENER.test(m[2].trimStart()) || CLAUSE_OPENER.test(m[3].trimStart())) continue
+      if (isDiscourseMarker(m[1]) || isDiscourseMarker(m[2])) continue  // parenthetical, not a list item
       if (endsWithProperNoun(m[1]) && !startsWithProperNoun(m[2])) continue  // named-entity appositive
       violations.push({ ruleId: 'triple-construction', startIndex: offset + m.index, endIndex: offset + m.index + m[0].length, matchedText: m[0] })
     }
@@ -784,6 +795,7 @@ export function detectTripleConstruction(text: string): Violation[] {
     const noOxfordRe = /([^,\n]{3,70}),\s+([\w-]+(?:\s+[\w-]+){0,2})\s+(?:and|or)\s+([^,.!?\n]{3,70})/gi
     while ((m = noOxfordRe.exec(chunk)) !== null) {
       if (CLAUSE_OPENER.test(m[2].trimStart()) || CLAUSE_OPENER.test(m[3].trimStart())) continue
+      if (isDiscourseMarker(m[1])) continue  // fronted parenthetical, not a list item
       if (endsWithAdjective(m[1])) continue  // adjective-stacking comma, not a list separator
       violations.push({ ruleId: 'triple-construction', startIndex: offset + m.index, endIndex: offset + m.index + m[0].length, matchedText: m[0] })
     }

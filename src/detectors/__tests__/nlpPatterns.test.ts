@@ -565,6 +565,29 @@ describe('detectTripleConstruction', () => {
     expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(true)
   })
 
+  it('does not flag a fronted discourse marker + compound sentence', () => {
+    // "on the other hand" is a parenthetical, not a list item; the rest is
+    // two independent clauses joined by ", and" — a compound sentence
+    const vs = detectTripleConstruction('In humid air, on the other hand, the atmosphere is already packed with moisture, and evaporation slows right down.')
+    expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(false)
+  })
+
+  it('does not flag a discourse marker opening a no-Oxford compound ("Of course, dogs bark and cats meow")', () => {
+    const vs = detectTripleConstruction('Of course, dogs bark and cats meow.')
+    expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(false)
+  })
+
+  it('still flags a genuine verb-phrase triple ("take X, wrap Y, and expose Z")', () => {
+    const vs = detectTripleConstruction('You take a regular thermometer, wrap its tip in a damp cloth, and expose it to the air.')
+    expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(true)
+  })
+
+  it('still flags a list whose first item merely contains a discourse-marker phrase', () => {
+    // Guard is exact-match on the item, not substring
+    const vs = detectTripleConstruction('She cited the report as a matter of fact, a warning, and a roadmap.')
+    expect(vs.some(v => v.ruleId === 'triple-construction')).toBe(true)
+  })
+
   it('does not flag adjective-stacking comma ("stiff, elevated shoulders and…")', () => {
     // The comma separates two adjectives on the same noun, not parallel list items
     const vs = detectTripleConstruction('the patient has stiff, elevated shoulders and an unusually rigid upright posture despite appearing alert')
