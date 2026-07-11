@@ -37,6 +37,11 @@ Wrong. Plenty of AI output is restrained and reads fine. Slop is a quality probl
 ## Types of slop that are more difficult to detect
 The AI tends to overclarify. 
 
+slop can be found in the relationship between sentences. for example:
+Regular sentence explaining something, followed by a metaphor phrase that explains the same thing. 
+
+that metaphor phrase that explains the same thing is the slop part. how can we identify "punchline restatement"? 
+
 
 ## Known issues with current detection algorithm
 English only. Because I only speak english. I can't help you find slop in a different language sorry. 

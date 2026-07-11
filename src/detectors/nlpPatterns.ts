@@ -980,8 +980,18 @@ export function detectClassGeneralization(text: string): Violation[] {
 // signal: an abstract tenor ("it" pointing at the previous claim) predicated as
 // a concrete vehicle. Four gates, all required:
 //
-//   1. Frame — sentence-initial It/That/This + 's/is + a/an. Named subjects
-//      ("The gearbox is a bucket…") are out of scope for v1.
+//   1. Frame — either of:
+//      a. Anaphoric: sentence-initial It/That/This + 's/is + a/an.
+//      b. Definite-subject punchline: The/This/That or a possessive pronoun
+//         + short lowercase subject + is/are + REQUIRED reframe adverb + a/an
+//         ("The fan is now a convection heater aimed at your body"). A named
+//         subject can open a perfectly literal description ("The venue is a
+//         warehouse converted into a gallery"), so this branch demands the
+//         adverb — "now"/"just"/"basically" is the rhetorical marker that
+//         recasts old information instead of adding new — plus a preceding
+//         sentence in the same paragraph (a punchline needs a setup).
+//         Residual FP: genuine state changes where "now" is temporal
+//         ("The fan is now a paperweight gathering dust" after "It broke").
 //   2. Concreteness — the noun phrase's head noun is in CONCRETE_NOUNS
 //      (Brysbaert norms, Conc.M >= 4.2). "It's an idea wrapped in jargon"
 //      never fires; "idea" scores 1.61.
@@ -1004,14 +1014,25 @@ export function detectClassGeneralization(text: string): Violation[] {
 // NP core from twist correctly, because greedy backtracking steals participles
 // into the core ("a megaphone welded shut" would parse core="megaphone welded",
 // head="welded", and fail the concreteness gate).
-const DECOR_FRAME_RE = /^(?:It|That|This)(?:[\u2019']s|\s+is)\s+(?:just\s+|basically\s+|essentially\s+|really\s+|only\s+|simply\s+|effectively\s+)?an?\s+([^\n]+)$/
+const DECOR_FRAME_RE = /^(?:It|That|This)(?:[\u2019']s|\s+is)\s+(?:now\s+|just\s+|basically\s+|essentially\s+|really\s+|only\s+|simply\s+|effectively\s+|actually\s+|literally\s+)?an?\s+([^\n]+)$/
+
+// Definite-subject punchline frame. Subject is 1\u20132 lowercase words (a
+// capitalized subject is a proper noun \u2014 out of scope), and the reframe adverb
+// is mandatory: without it, "The X is a Y <twist>" is the shape of a literal
+// description, not a restatement.
+const DECOR_DEFINITE_FRAME_RE = /^(?:The|This|That|Your|Our|My|His|Her|Its|Their)\s+[a-z][a-z\u2019'-]*(?:\s+[a-z][a-z\u2019'-]*)?\s+(?:is|are)\s+(?:now|just|basically|essentially|really|only|simply|effectively|actually|literally)\s+an?\s+([^\n]+)$/
 
 const DECOR_TWIST_STARTER_RE = /^(?:with|without|on|over|under|inside|behind|full|made|set|hung|stuck|worn|torn|shut|cut|held|kept|left|lost|built|bent|gone|thrown|drawn|blown|sworn|spun|wound|bound|[a-z]{3,}(?:ed|ing))$/
 
 const DECOR_CORE_WORD_RE = /^[a-z]+(?:-[a-z]+)*$/
 
+// Prefilter alternatives: anaphoric frame opener, or copula + reframe adverb +
+// article (the definite-subject branch's cheapest distinctive signal).
+const DECOR_PREFILTER_ANAPHORIC_RE = /\b(?:It|That|This)(?:[\u2019']s|\s+is)\s/
+const DECOR_PREFILTER_DEFINITE_RE = /\b(?:is|are)\s+(?:now|just|basically|essentially|really|only|simply|effectively|actually|literally)\s+an?\s/i
+
 export function detectDecorativeMetaphor(text: string): Violation[] {
-  if (!/\b(?:It|That|This)(?:[\u2019']s|\s+is)\s/.test(text)) return []
+  if (!DECOR_PREFILTER_ANAPHORIC_RE.test(text) && !DECOR_PREFILTER_DEFINITE_RE.test(text)) return []
 
   const violations: Violation[] = []
   const parts = text.split(/(\n\n+)/)
@@ -1024,13 +1045,22 @@ export function detectDecorativeMetaphor(text: string): Violation[] {
     const paraOffset = docPos
     docPos += part.length
 
-    for (const s of splitSentencesWithOffsets(part)) {
+    const sentences = splitSentencesWithOffsets(part)
+    for (let si = 0; si < sentences.length; si++) {
+      const s = sentences[si]
       const leadWs = s.text.length - s.text.trimStart().length
       const lead = s.text.slice(leadWs).replace(/\s+$/, '')
       if (/["“”]/.test(lead)) continue          // dialogue, not rhetoric
       if (lead.split(/\s+/).length > 16) continue          // the capper rhythm is short
 
-      const m = DECOR_FRAME_RE.exec(lead)
+      // Anaphoric frame fires anywhere (the pronoun implies its own antecedent);
+      // the definite-subject frame only after a setup sentence in the paragraph.
+      let m = DECOR_FRAME_RE.exec(lead)
+      let weight = 0.9
+      if (!m && si > 0) {
+        m = DECOR_DEFINITE_FRAME_RE.exec(lead)
+        weight = 0.85  // temporal-"now" state changes are a residual FP here
+      }
       if (!m) continue
 
       // Token walk: try each head position 0..2. A hit needs the head token in
@@ -1062,7 +1092,7 @@ export function detectDecorativeMetaphor(text: string): Violation[] {
         startIndex: start,
         endIndex: end,
         matchedText: lead,
-        instanceWeight: 0.9,
+        instanceWeight: weight,
       })
     }
   }

@@ -1085,4 +1085,42 @@ describe('detectDecorativeMetaphor', () => {
   it('does not flag mid-sentence occurrences', () => {
     silent('She joked that maybe it’s a volume knob stuck at max.')
   })
+
+  // ── Definite-subject punchline branch ──────────────────────────────────────
+
+  it('flags the benchmark fan sentence', () => {
+    fires('You are essentially absorbing heat from the moving air. The fan is now a convection heater aimed at your body.')
+  })
+
+  it('flags "is just a" punchlines', () => {
+    fires('The dashboard tracks everything and changes nothing. The report is just a mirror pointed at yesterday.')
+  })
+
+  it('flags possessive-pronoun subjects', () => {
+    fires('She rehearsed the speech until every pause was scripted. Her voice is now an instrument tuned for one song.')
+  })
+
+  it('flags "It’s now a" in the anaphoric frame', () => {
+    fires('The airflow reversed. It’s now a heater aimed at your body.')
+  })
+
+  it('does not flag literal descriptions without a reframe adverb', () => {
+    silent('We finally saw the venue. The venue is a warehouse converted into a gallery.')
+  })
+
+  it('does not flag a definite-subject punchline that opens a paragraph', () => {
+    silent('The fan is now a convection heater aimed at your body.')
+  })
+
+  it('does not flag indefinite subjects', () => {
+    silent('You absorb heat from the air. A fan is now a convection heater aimed at your body.')
+  })
+
+  it('does not flag definite subjects without a twist', () => {
+    silent('You absorb heat from the air. The fan is now a heater.')
+  })
+
+  it('hapax guard applies to the definite branch', () => {
+    silent('The heater in the corner stays off all summer. The fan is now a convection heater aimed at your body.')
+  })
 })
