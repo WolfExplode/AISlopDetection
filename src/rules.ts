@@ -1063,6 +1063,22 @@ export const RULES: ViolationRule[] = [
     llmDirective: "Do not use performative honesty phrases ('I\\'ll be honest', 'Let\\'s be real', 'And yes, since we\\'re being honest') — real vulnerability is specific.",
     ...RULE_SCORING['false-vulnerability'],
   },
+  {
+    id: 'unearned-intensity',
+    name: 'Unearned Intensity',
+    category: 'framing',
+    description: 'Rhetorical escalation not paid for by information: personified processes ("Evaporation is already failing"), menace aimed at the reader, or drama decorating a claim already made plainly.',
+    tip: 'Every intensity device claims something here deserves heightened attention. If deleting the drama loses no information, the drama was unearned — state the mechanism plainly.',
+    canRemove: false,
+    color: '#e11d48',
+    bgColor: 'rgba(225,29,72,0.15)',
+    requiresLLM: true,
+    llmTier: 'sentence',
+    llmDetectionHint: 'A sentence whose rhetorical intensity exceeds the information it carries. Surface forms: an inanimate process given agency and narrative drama ("Evaporation is already failing. The fan cannot restart it."); neutral mechanics framed as menace against the reader ("transfers its heat to you", "aimed at your body"); dramatic contrast or stakes wrapped around a claim the surrounding sentences already made plainly. The device itself is not the violation — flag only when removing the drama would lose no information. Do not flag content that is genuinely dramatic (real emergencies, real reversals, real stakes) or metaphors that add predictive meaning.',
+    rewriteHint: 'Strip unearned dramatic devices — personified processes, menace aimed at the reader, stakes the content does not support — and state the mechanism plainly.',
+    llmDirective: 'Do not dramatize neutral content — no personified processes ("Evaporation is failing"), no menace aimed at the reader, no intensity the information does not earn.',
+    ...RULE_SCORING['unearned-intensity'],
+  },
 
   // ── Document-level (Sonnet) ───────────────────────────────────────────────
   {

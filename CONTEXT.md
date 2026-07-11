@@ -16,6 +16,33 @@ _Avoid_: Pattern, detector (detector is the code that implements a rule; keep th
 One concrete match of a Rule against a specific span of the user's text. A Rule can produce zero, one, or many Violations in a given document.
 _Avoid_: Match, hit, flag
 
+**Unearned Intensity**:
+The underlying failure mode that most rhetorical and framing Rules are surface forms of. Every intensity device — metaphor, personification, dramatic contrast, fragment rhythm, stakes-raising, second-person address — is a claim that *something here warrants heightened attention*. Human writers spend these devices against a budget: the drama arrives when the content earns it. LLM prose spends them on credit, per-sentence, because models were rewarded for engagingness per-sentence rather than per-document. Client-side Rules detect crystallized shapes of the spend (`decorative-metaphor` = intensity via image with zero information delta; `negation-pivot` = the structure of a plot twist around a claim never in doubt; `dramatic-fragment` = percussion signaling a beat the content lacks; `grandiose-stakes` = significance asserted, not demonstrated); the sentence-tier Rule `unearned-intensity` judges the general case. False positives cluster exactly where the intensity turns out to be backed — a real state change, a literal usage — which is why client-rule guards keep converging on the shape "suppress when the drama *is* the information."
+_Avoid_: Drama, purple prose (both describe register; the concept is the missing collateral, not the heat)
+
+## Failure modes
+
+The conceptual hierarchy over the Rules. A Rule's `category` classifies its *surface unit* (what kind of span it matches — a word, a sentence shape, a structure) and drives the sidebar grouping; its failure mode classifies *which dial got turned up* — the underlying miscalibration the surface shape is a symptom of. The taxonomy is conceptual organization, not a code axis: nothing consumes it programmatically. New rules should identify their failure mode first; it predicts what the guards will look like (see each mode's FP note) and which general-case LLM rule covers the long tail the client rules miss.
+
+**1. Unearned Intensity** (drama dial ↑) — defined in § Language. Rhetorical escalation not paid for by information. The general case is the sentence-tier `unearned-intensity` rule; the client-side crystallized shapes:
+- *via image*: `decorative-metaphor`, `metaphor-crutch`, `dead-metaphor`
+- *via rhythm*: `dramatic-fragment`, `triple-fragment`, `triple-construction`, `staccato-burst`, `anaphora-abuse`, `gerund-fragment-litany`, `short-hook-paragraph`, `colon-elaboration`, `question-then-answer`
+- *via fake reversal*: `negation-pivot`, `fragment-negation`, `paired-negation`, `negation-countdown`, `heres-the-kicker`, `phantom-contrast`
+- *via asserted significance*: `grandiose-stakes`, `significance-phrases`, `important-to-note`, `broader-implications`, `reality-claim`, `earned-claim`, `era-opener`, `imagine-world`
+- *via borrowed authority*: `class-generalization`, `historical-analogy-stack`, `exemplar-cliche`, `vague-attribution`, `false-range`, `invented-concept-label`
+- *via diction*: `overused-intensifier`, `stacked-intensifiers`, `filler-adjectives`, `filler-adverbs`, `elevated-register`, `serves-as`, `inline-emphasis`
+FP shape: the intensity turns out to be backed (a real state change, a literal usage, genuinely earned drama).
+
+**2. Reflexive De-risking** (hedge dial ↑) — Unearned Intensity's mirror twin: commitment refunded that was never demanded. `hedge-stack`, `almost-hedge`, `balanced-take`, `despite-challenges`, `parenthetical-qualifier`, `quote-overuse`, `professional-disclaimer`. FP shape: the hedge is genuine epistemic honesty (real uncertainty, real legal exposure).
+
+**3. Performed Relationship** (warmth dial ↑) — the model playing a social role instead of conveying content. `sycophantic-phrases`, `sycophantic-words`, `sycophantic-frame`, `empathy-performance`, `false-vulnerability`, `pedagogical-aside`, `throat-clearing`. FP shape: the writer actually knows the reader (correspondence, not content).
+
+**4. Redundant Scaffolding** (structure dial ↑) — words about the content instead of content; saying it again. `pivot-paragraph`, `fractal-summaries`, `one-point-dilution`, `unnecessary-elaboration`, `superficial-analysis`, `false-conclusion`, `connector-addiction`, `unnecessary-contrast`, `listicle-instinct`, `listicle-trench-coat`, `bold-first-bullets`. FP shape: the restatement carries new information (a summary that genuinely synthesizes).
+
+**5. Statistical Fingerprints** (no dial) — neutral generation artifacts, not miscalibration; frequency is the whole signal. `slop-trigram`, `slop-bigram`, `slop-word-character-name`, `slop-word-atmospheric`, `slop-word-fantasy-vocab`, `slop-word-essay`, `fiction-body-language`, `em-dash-overuse`, `unicode-decoration`, `chatbot-artifact`, `knowledge-cutoff-disclaimer`. FP shape: a human who natively writes in the fingerprinted register.
+
+`slop-cluster` sits outside the taxonomy — it is a density meta-rule over all the others. Assignments are primary, not exclusive: several rules genuinely straddle modes (`negation-pivot` is both a fake reversal and a restatement; `quote-overuse` is terminology hedging and ad-hoc coining; `throat-clearing` is warmth performance and scaffolding). A strict tree would fight reality — one primary mode per rule is the contract.
+
 ## Scoring
 
 No single Violation makes a document slop — only the aggregate does. A rule fires per-instance, but a document only reads as "slop" once usage exceeds the free allowance a normal human writer would use anyway. This mechanism (per-rule excess-over-baseline, rolled up into one aggregate) is uniform across all 6 rule categories, including structural/formatting ones — a single bold-first bullet or a single rule-of-three list isn't slop, three in a row is.

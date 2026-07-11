@@ -37,11 +37,9 @@ Wrong. Plenty of AI output is restrained and reads fine. Slop is a quality probl
 ## Types of slop that are more difficult to detect
 The AI tends to overclarify. 
 
-slop can be found in the relationship between sentences. for example:
-Regular sentence explaining something, followed by a metaphor phrase that explains the same thing. 
+slop can be found in the relationship between sentences
 
-that metaphor phrase that explains the same thing is the slop part. how can we identify "punchline restatement"? 
-
+The underlying idea seems to be **unearned intensity**: rhetorical escalation that isn't paid for by information. Every intensity device — metaphor, personification, dramatic contrast, punchy fragments, stakes-raising, second-person address — is a claim that *something here deserves heightened attention*. Human writers spend these against a budget; LLM prose spends them on credit, every paragraph, because the model was rewarded for engagingness per-sentence rather than per-document. Punchline restatement ("The fan is now a convection heater aimed at your body") is intensity via image with zero new information. Personified process drama ("Evaporation is already failing. The fan cannot restart it") is intensity via narrative imposed on a process that has no plot. The device is never the violation — a real plot twist deserves a negation pivot — the violation is the missing collateral. Client-side rules catch the crystallized surface shapes; the `unearned-intensity` LLM rule judges the general case: does this sentence's drama exceed its information?
 
 ## Known issues with current detection algorithm
 English only. Because I only speak english. I can't help you find slop in a different language sorry. 
