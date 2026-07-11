@@ -312,6 +312,20 @@ export function detectNegationPivot(text: string): Violation[] {
     })
   }
 
+  // Contracted-copula reframe: "It's not X, it's Y" / "They're not X, they're Y". The copula contracts
+  // onto the subject (\u2019s = is, \u2019re = are), so the reframe branch above \u2014 which matches "is not"/"are not" \u2014
+  // can't see it. Treated identically to that branch (no intensifier required) for consistency: "It is not
+  // immunity, it's family" already fires, so its contraction must too. Lookbehind excludes hortative "let's not".
+  const contractedReframeRe = /(?<!\blet)[\u2019'](?:s|re)\s+not\b[^.!?\n]{3,120}[,;]\s+(?:it[\u2019']?s|it is|they[\u2019']?re|that[\u2019']?s|this is)\b/gi
+  while ((m = contractedReframeRe.exec(text)) !== null) {
+    violations.push({
+      ruleId: 'negation-pivot',
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      matchedText: m[0],
+    })
+  }
+
   return violations
 }
 
@@ -617,6 +631,17 @@ const ANAPHORA_SINGLE_WORD_SKIP = new Set([
   'i', 'we', 'you', 'he', 'she', 'it', 'they',
 ])
 
+// Copula-cleft anaphora: subject pronouns that twoWordOpener deliberately skips
+// (to let ordinary narration through) but which DO signal the LLM tell when
+// followed by a linking verb and repeated — "It is X. It is Y. It is Z."
+// Demonstratives (this/that/there) and "they" already fire via twoWordOpener,
+// so only the skipped subject pronouns need this extra path. A copula
+// distinguishes a cleft ("He is a liar") from narration ("He walked in"); the
+// -ing guard below drops progressive narration ("It is raining. It is pouring").
+const CLEFT_PRONOUNS = new Set(['it', 'i', 'we', 'he', 'she'])
+const CLEFT_OPENER_RE =
+  /^(\s*)(?:(?:and|but|or)\s+)?(it|i|we|he|she)([’'](?:s|m|re)|\s+(?:is|are|was|were|am))(\s+)(\S+)/i
+
 export function detectAnaphoraAbuse(text: string): Violation[] {
   const violations: Violation[] = []
 
@@ -646,6 +671,24 @@ export function detectAnaphoraAbuse(text: string): Violation[] {
     const first = words[0].toLowerCase().replace(/[^a-z]/g, '')
     if (first.length < 2 || ANAPHORA_SINGLE_WORD_SKIP.has(first)) return ''
     return first
+  }
+
+  // Copula-cleft opener: "<pronoun> <copula> <predicate>" for the subject
+  // pronouns twoWordOpener skips. Returns the normalized key (for run grouping)
+  // and the character length of the "<pronoun> <copula>" span (for highlighting),
+  // or null when the sentence is not a cleft. A predicate starting with a present
+  // participle is progressive narration ("It is raining"), not a cleft — skip it.
+  function cleftOpener(s: string): { key: string; length: number } | null {
+    const m = CLEFT_OPENER_RE.exec(s)
+    if (!m) return null
+    const pron = m[2].toLowerCase()
+    if (!CLEFT_PRONOUNS.has(pron)) return null
+    if (/ing$/i.test(m[5])) return null
+    let cop = m[3].toLowerCase().replace(/^[’']/, '').trim()
+    if (cop === 's') cop = 'is'
+    else if (cop === 'm') cop = 'am'
+    else if (cop === 're') cop = 'are'
+    return { key: `${pron} ${cop}`, length: m[0].length - m[4].length - m[5].length }
   }
 
   // Returns the character length of the opener (including any leading conjunction)
@@ -691,6 +734,26 @@ export function detectAnaphoraAbuse(text: string): Violation[] {
 
     let i = 0
     while (i < sentences.length) {
+      // Copula-cleft opener ("It is X. It is Y. It is Z.") — covers the subject
+      // pronouns twoWordOpener skips, so try it before the generic openers.
+      const cleft = cleftOpener(sentences[i])
+      if (cleft) {
+        let j = i + 1
+        while (j < sentences.length && cleftOpener(sentences[j])?.key === cleft.key) j++
+        if (j - i >= 3) {
+          const count = j - i
+          for (let k = i; k < j; k++) {
+            const sentStart = offsets[k]
+            const end = sentStart + cleftOpener(sentences[k])!.length
+            violations.push({
+              ruleId: 'anaphora-abuse', startIndex: sentStart, endIndex: end,
+              matchedText: text.slice(sentStart, end),
+              explanation: `"${cleft.key}..." repeated ${count} times`,
+            })
+          }
+          i = j; continue
+        }
+      }
       // Two-word opener (more specific — try first)
       const two = twoWordOpener(sentences[i])
       if (two) {

@@ -407,6 +407,16 @@ describe('detectNegationPivot', () => {
     assertFires(detectNegationPivot("Leadership isn't merely about authority, it's about service."), 'negation-pivot')
     assertFires(detectNegationPivot("Success isn't only about talent, it's about consistency."), 'negation-pivot')
   })
+  it('flags contracted-copula reframe, consistent with the full "is not" form', () => {
+    assertFires(detectNegationPivot("It's not immunity, it's family."), 'negation-pivot')
+    assertFires(detectNegationPivot("It's not just immunity, it's family."), 'negation-pivot')
+    assertFires(detectNegationPivot("It's not merely a habit, it's an identity."), 'negation-pivot')
+    assertFires(detectNegationPivot("They're not enemies, they're allies."), 'negation-pivot')
+  })
+  it('does not fire on non-copula "not" or hortative "let\'s not"', () => {
+    assertSilent(detectNegationPivot("I did not finish the report, it's still on my desk."), 'negation-pivot')
+    assertSilent(detectNegationPivot("Let's not argue, it's pointless."), 'negation-pivot')
+  })
 })
 
 // ── Colon Elaboration ──────────────────────────────────────────────────────
@@ -716,6 +726,25 @@ describe('detectAnaphoraAbuse', () => {
   })
   it('does NOT count opener runs across a paragraph boundary', () => {
     assertSilent(detectAnaphoraAbuse('Every step counts. Every step matters.\n\nEvery step defines us.'), 'anaphora-abuse')
+  })
+  it('flags an "It is X" copula-cleft litany (the pronoun twoWordOpener skips)', () => {
+    assertFires(detectAnaphoraAbuse('It is not the office workers. It is agricultural laborers in India. It is construction crews in the Gulf. It is the elderly in European flats.'), 'anaphora-abuse')
+  })
+  it('flags an "It’s X" contraction cleft litany', () => {
+    assertFires(detectAnaphoraAbuse('It’s a warning. It’s a threshold. It’s a wall we cannot cross.'), 'anaphora-abuse')
+  })
+  it('flags "He is X" and "I am X" copula clefts', () => {
+    assertFires(detectAnaphoraAbuse('He is a father. He is a soldier. He is a liar.'), 'anaphora-abuse')
+    assertFires(detectAnaphoraAbuse('I am tired. I am hungry. I am done.'), 'anaphora-abuse')
+  })
+  it('does NOT flag pronoun-subject action narration (no copula)', () => {
+    assertSilent(detectAnaphoraAbuse('It speeds up the process. It carries away heat. It does nothing at all.'), 'anaphora-abuse')
+  })
+  it('does NOT flag progressive narration ("It is raining...")', () => {
+    assertSilent(detectAnaphoraAbuse('It is raining hard. It is pouring outside. It is flooding the street.'), 'anaphora-abuse')
+  })
+  it('does NOT flag only 2 consecutive clefts', () => {
+    assertSilent(detectAnaphoraAbuse('It is cold. It is dark. The room is empty.'), 'anaphora-abuse')
   })
 })
 

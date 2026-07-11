@@ -859,6 +859,12 @@ describe('detectNegationPivotStructural', () => {
     expect(pivotViolations("It doesn't do X. It doesn't do Y either.").length).toBe(0)
   })
 
+  it('does not fold a "never" sentence into a following contracted-copula pivot', () => {
+    // s2 ("It's not immunity, it's familiarity.") is itself a negation pivot; the guard must
+    // recognize the contracted "It's not" and not merge the preceding "never" sentence into it.
+    expect(pivotViolations("Completely novel pathogens, the ones that the system has never cataloged, are where things can go wrong. It’s not immunity, it’s familiarity.").length).toBe(0)
+  })
+
   it('does not flag across paragraph boundaries', () => {
     expect(pivotViolations("AI isn't just a productivity boost.\n\nIt gets us closer to our mission.").length).toBe(0)
   })
