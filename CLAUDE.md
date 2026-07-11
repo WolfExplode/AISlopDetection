@@ -8,7 +8,7 @@ Web app that detects LLM-generated prose patterns in text and highlights them wi
 - **pnpm** — use pnpm for all package operations, never npm or yarn
 - `pnpm dev` — dev server on localhost:5173
 - `pnpm build` — type-check + build to `dist/`
-- `pnpm test` — Vitest unit tests (622 tests, all client-side detectors)
+- `pnpm test` — Vitest unit tests (667 tests, all client-side detectors)
 
 ## Architecture
 
@@ -62,9 +62,9 @@ Each rule in `src/rules.ts` has:
 
 ## Rules count
 
-- **Client-side rules:** 40
+- **Client-side rules:** 41
 - **LLM-required rules:** 12 (9 sentence-level + 3 document-level)
-- **Total:** 52
+- **Total:** 53
 
 ## Adding a new rule
 
@@ -83,6 +83,7 @@ Each rule in `src/rules.ts` has:
 - **`concept-label`**: Matches `[content word] + [abstract suffix noun]` for ~35 suffix nouns (paradox, trap, treadmill, fatigue, tax, theater, syndrome, loop…) defined in `CONCEPT_LABEL_NOUNS` in wordPatterns.ts. A determiner/preposition before the noun never fires ("falls into the trap", "in limbo" — see `CONCEPT_LABEL_SKIP_PRECEDING`), and per-noun allowlists skip established literal compounds ("income tax", "chronic fatigue", "feedback loop", "movie theater"). Established-but-slop-adjacent coinages ("scope creep", "imposter syndrome") still fire by design; the rule targets LLM prose inflation. Remaining FP surface: literal compounds not on an allowlist ("castle moat", "suffered whiplash") and domain-heavy writing (medical "X syndrome", finance "X debt").
 - **`superficial-analysis`**: The `, [participle] its/the/their/this [noun]` pattern can occasionally match legitimate summarizing phrases. `canRemove: true` lets users dismiss easily.
 - **`triple-construction`**: Named-entity appositives are suppressed via a `#ProperNoun` check ("Dave Burwick, former CEO of Boston Beer, and Frank Luntz" does not fire). Common-noun appositives ("Fermentation, a necessary step in brewing, and aging…") remain false positives — every surface heuristic (article presence, item length) has clear counterexamples, and fixing them requires semantic understanding beyond compromise/two.
+- **`phantom-contrast`**: `[delimiter] [unit X] not [unit Y]` appositives where both units sit on the same ordered scale (time, tens→trillions, metric/imperial length) and the contrast direction *agrees* with an evaluative adjective earlier in the sentence ("short, hours not days" — the contrast restates "short"). Three gates keep it tight: bare contrasts with no adjective ("It took hours, not days") never fire — they may correct a stated estimate; disagreeing directions ("brief, days not minutes") never fire — those are informative; and a delimiter (comma/colon/dash) must precede unit X, so mid-clause phrasing ("lasted weeks not days") is out of scope. Remaining FP surface: the gating adjective can refer to a different dimension than the units ("the cheap venue was booked solid, months not weeks" — "cheap" gates a time contrast), and genuine corrections that happen to restate an in-sentence adjective still fire by design. The `think Xs, not Ys` branch requires both nouns plural, so "think big, not small" is intentionally missed; only the `, not Ys` tail is flagged so removal keeps "think Xs".
 - **`false-range` client branches**: "everything/everyone/anything/anyone from X to Y" caps endpoints at 3 words and skips matches containing digits, but a movement sentence shaped like "everyone from interns went on to management" can still fire. "Xs and Ys alike" requires a plural-looking word (trailing single `s`, >3 chars) on one side to exclude the "similarly" sense ("look and act alike"), so plural-less flourishes ("young and old alike") are intentionally missed and s-ending verbs can rarely slip through. Bare "from X to Y" stays LLM-tier only — too ambiguous for regex.
 - **`unicode-decoration`**: Any `\p{Extended_Pictographic}` run fires (©/®/™ excluded). A human deliberately using an emoji in casual prose is flagged the same as chatbot decoration — accepted; the rule targets prose, not chat messages.
 

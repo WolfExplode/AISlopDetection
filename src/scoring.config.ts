@@ -43,6 +43,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'negation-pivot':           { ruleWeight: 4.0, scoringMode: 'linear',      freeRate: 0 },
   'fragment-negation':        { ruleWeight: 3.0, scoringMode: 'threshold',   freeRate: 0.5 },
   'negation-countdown':       { ruleWeight: 3.2, scoringMode: 'linear',      freeRate: 0 },
+  'phantom-contrast':         { ruleWeight: 3.4, scoringMode: 'linear',      freeRate: 0 },
   'serves-as':                { ruleWeight: 2.2, scoringMode: 'diminishing', freeRate: 0 },
   'superficial-analysis':     { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0 },
   'unnecessary-elaboration':  { ruleWeight: 2.4, scoringMode: 'diminishing', freeRate: 0 },

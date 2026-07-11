@@ -608,6 +608,21 @@ export const RULES: ViolationRule[] = [
     ...RULE_SCORING['reality-claim'],
   },
 
+  {
+    id: 'phantom-contrast',
+    name: 'Phantom Contrast',
+    category: 'rhetorical',
+    description: '"These events were short, hours not days" — a scale contrast that restates the adjective before it, negating an expectation nobody raised. Also "think X, not Y" imperatives.',
+    tip: 'Cut the contrast — "short, hours not days" says "short" twice. If the comparison corrects a real expectation, name the expectation; otherwise the sentence is stronger without it.',
+    canRemove: true,
+    color: '#f472b6',
+    bgColor: 'rgba(244,114,182,0.15)',
+    requiresLLM: false,
+    rewriteHint: 'Delete redundant "X, not Y" scale appositives that restate an adjective ("short, hours not days" → "short"), unless the contrast corrects an expectation the text actually raised.',
+    llmDirective: 'Do not add "X, not Y" scale contrasts that restate an evaluation already made ("short, hours not days") — state the measurement once.',
+    ...RULE_SCORING['phantom-contrast'],
+  },
+
   // ── Framing (new) ────────────────────────────────────────────────────────
   {
     id: 'invented-concept-label',

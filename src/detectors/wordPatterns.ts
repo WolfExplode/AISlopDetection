@@ -1052,6 +1052,110 @@ export function detectSuperficialAnalysis(text: string): Violation[] {
   return findAll(text, re, 'superficial-analysis')
 }
 
+// ── Phantom contrast ──────────────────────────────────────────────────────────
+// "These events were short, hours not days" — a scale-contrast appositive that
+// restates the evaluative adjective before it, negating an expectation the text
+// never raised. The redundancy is provable when (a) both endpoints sit on the
+// same ordered unit scale and (b) the contrast direction agrees with the
+// adjective (small adjective + smaller-unit-first, or big + bigger-unit-first).
+// A disagreeing direction ("brief, days not minutes") is informative and never
+// fires; a bare contrast with no adjective ("It took hours, not days") may be
+// a genuine correction of a stated estimate and never fires.
+
+// Ordered smallest → largest within each scale. Same-scale membership is the
+// precision engine: "hours, not overtime" can never fire.
+const PHANTOM_CONTRAST_SCALES: string[][] = [
+  ['moment', 'second', 'minute', 'hour', 'day', 'week', 'month', 'year', 'decade', 'century', 'millennium'],
+  ['ten', 'dozen', 'hundred', 'thousand', 'million', 'billion', 'trillion'],
+  ['millimeter', 'centimeter', 'meter', 'kilometer'],
+  ['inch', 'foot', 'yard', 'mile'],
+]
+
+const PHANTOM_UNIT_INDEX = new Map<string, { scale: number; idx: number }>()
+PHANTOM_CONTRAST_SCALES.forEach((scale, s) =>
+  scale.forEach((unit, i) => PHANTOM_UNIT_INDEX.set(unit, { scale: s, idx: i })),
+)
+
+// Irregular plurals fold to the scale's canonical singular; British -tre
+// spellings fold to -ter.
+const PHANTOM_UNIT_FOLDS: Record<string, string> = {
+  feet: 'foot',
+  inches: 'inch',
+  centuries: 'century',
+  millennia: 'millennium',
+}
+
+function foldUnit(word: string): string {
+  const lower = word.toLowerCase()
+  return PHANTOM_UNIT_FOLDS[lower] ?? lower.replace(/s$/, '').replace(/tre$/, 'ter')
+}
+
+const PHANTOM_SMALL_ADJ_RE =
+  /\b(short|brief|quick|quickly|fast|rapid|rapidly|soon|swift|swiftly|cheap|tiny|small|minor|modest|close|tight|marginal|low|trivial|fleeting|near|imminent)\b/i
+const PHANTOM_BIG_ADJ_RE =
+  /\b(long|slow|slowly|massive|huge|enormous|vast|large|major|expensive|costly|high|staggering|astronomical|distant|far)\b/i
+
+// Delimiter, optional filler ("a matter of", "within"), unit X, "not", unit Y.
+// The delimiter requirement keeps mid-clause contrasts ("lasted weeks, not
+// days") out of scope — only the detached appositive is the tell. The span
+// starts at the delimiter so canRemove deletion excises the whole appositive:
+// "short, hours not days." → "short."
+const PHANTOM_CONTRAST_RE =
+  /([,:—–])\s*((?:(?:a|an|the|mere|merely|just|maybe|perhaps|within|in|of|matter)\s+){0,4})(\w+),?\s+not\s+(?:even\s+|the\s+)?(\w+)/gi
+
+export function detectPhantomContrast(text: string): Violation[] {
+  const violations: Violation[] = []
+
+  for (const para of splitParagraphs(text)) {
+    let offset = 0
+    for (const sentence of splitSentences(para.text)) {
+      const sentenceStart = para.start + offset
+      offset += sentence.length
+
+      PHANTOM_CONTRAST_RE.lastIndex = 0
+      let m: RegExpExecArray | null
+      while ((m = PHANTOM_CONTRAST_RE.exec(sentence)) !== null) {
+        const unitX = PHANTOM_UNIT_INDEX.get(foldUnit(m[3]))
+        const unitY = PHANTOM_UNIT_INDEX.get(foldUnit(m[4]))
+        if (!unitX || !unitY || unitX.scale !== unitY.scale || unitX.idx === unitY.idx) continue
+
+        // Adjective gate: fire only when the clause before the contrast
+        // already made the evaluation the contrast restates.
+        const before = sentence.slice(0, m.index)
+        const agrees =
+          (unitX.idx < unitY.idx && PHANTOM_SMALL_ADJ_RE.test(before)) ||
+          (unitX.idx > unitY.idx && PHANTOM_BIG_ADJ_RE.test(before))
+        if (!agrees) continue
+
+        violations.push({
+          ruleId: 'phantom-contrast',
+          startIndex: sentenceStart + m.index,
+          endIndex: sentenceStart + m.index + m[0].length,
+          matchedText: m[0],
+        })
+      }
+    }
+  }
+
+  // "Think ecosystems, not pipelines." — imperative phantom contrast; slop
+  // regardless of scale. Both words must look plural so "I think so, not
+  // really" stays silent. Only the ", not Y" tail is flagged so canRemove
+  // deletion keeps "think X".
+  const thinkRe = /\bthink\s+\w+s(,\s*not\s+\w+s)\b/gi
+  let m: RegExpExecArray | null
+  while ((m = thinkRe.exec(text)) !== null) {
+    const start = m.index + m[0].length - m[1].length
+    violations.push({
+      ruleId: 'phantom-contrast',
+      startIndex: start,
+      endIndex: m.index + m[0].length,
+      matchedText: m[1],
+    })
+  }
+
+  return violations
+}
+
 // ── Exemplar clichés ──────────────────────────────────────────────────────────
 // From slopbuster + universal AI tell: labelling something as proof without arguing why.
 // "A textbook example of X" performs analysis rather than doing it.

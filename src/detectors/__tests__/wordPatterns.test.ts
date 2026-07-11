@@ -35,6 +35,7 @@ import {
   detectConceptLabel,
   detectDramaticFragment,
   detectPairedNegation,
+  detectPhantomContrast,
   detectRealityClaim,
   detectSuperficialAnalysis,
   detectFalseRange,
@@ -1072,6 +1073,62 @@ describe('detectPairedNegation', () => {
   })
   it('does NOT flag a single negation', () => {
     assertSilent(detectPairedNegation('He was not angry about it.'), 'paired-negation')
+  })
+})
+
+// ── Phantom Contrast ───────────────────────────────────────────────────────
+
+describe('detectPhantomContrast', () => {
+  it('flags "short, hours not days"', () => {
+    assertFires(detectPhantomContrast('These events were short, hours not days.'), 'phantom-contrast')
+  })
+  it('flags "fast, days not weeks"', () => {
+    assertFires(detectPhantomContrast('Recovery is fast, days not weeks.'), 'phantom-contrast')
+  })
+  it('flags a big-adjective contrast "massive, billions not millions"', () => {
+    assertFires(detectPhantomContrast('This is a massive market, billions not millions.'), 'phantom-contrast')
+  })
+  it('flags the em-dash form with comma before "not"', () => {
+    assertFires(detectPhantomContrast('The outage was brief — minutes, not hours.'), 'phantom-contrast')
+  })
+  it('flags filler between delimiter and unit ("a matter of")', () => {
+    assertFires(detectPhantomContrast('The fix was quick, a matter of hours, not days.'), 'phantom-contrast')
+  })
+  it('spans the whole appositive so removal is clean', () => {
+    const text = 'These events were short, hours not days.'
+    const v = detectPhantomContrast(text).find(v => v.ruleId === 'phantom-contrast')
+    expect(v).toBeDefined()
+    expect(v!.matchedText).toBe(', hours not days')
+    expect(text.slice(0, v!.startIndex) + text.slice(v!.endIndex)).toBe('These events were short.')
+  })
+  it('flags "think Xs, not Ys" regardless of scale', () => {
+    assertFires(detectPhantomContrast('Think ecosystems, not pipelines.'), 'phantom-contrast')
+  })
+  it('flags only the ", not Ys" tail of a think-contrast', () => {
+    const text = 'Think ecosystems, not pipelines.'
+    const v = detectPhantomContrast(text).find(v => v.ruleId === 'phantom-contrast')
+    expect(v!.matchedText).toBe(', not pipelines')
+  })
+  it('does NOT flag a bare contrast with no adjective (may be a real correction)', () => {
+    assertSilent(detectPhantomContrast('The window will close within decades, not centuries.'), 'phantom-contrast')
+  })
+  it('does NOT flag when direction contradicts the adjective (informative contrast)', () => {
+    assertSilent(detectPhantomContrast('The outage was brief, days not minutes.'), 'phantom-contrast')
+  })
+  it('does NOT flag cross-scale contrasts', () => {
+    assertSilent(detectPhantomContrast('The plan was cheap, hours not dollars.'), 'phantom-contrast')
+  })
+  it('does NOT flag "not" followed by a non-unit word', () => {
+    assertSilent(detectPhantomContrast('The shifts were short, hours not counting breaks.'), 'phantom-contrast')
+  })
+  it('does NOT flag a mid-clause contrast without a delimiter', () => {
+    assertSilent(detectPhantomContrast('The quick fix lasted weeks not days.'), 'phantom-contrast')
+  })
+  it('does NOT flag "I think so, not really"', () => {
+    assertSilent(detectPhantomContrast('I think so, not really.'), 'phantom-contrast')
+  })
+  it('does NOT pair adjective and contrast across sentence boundaries', () => {
+    assertSilent(detectPhantomContrast('The fix was quick. It took hours, not days.'), 'phantom-contrast')
   })
 })
 
