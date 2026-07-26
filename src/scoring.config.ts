@@ -92,6 +92,7 @@ export const RULE_SCORING: Record<string, { ruleWeight: number; scoringMode: Sco
   'metaphor-crutch':          { ruleWeight: 2.5, scoringMode: 'threshold',   freeRate: 0.5 },
   'decorative-metaphor':      { ruleWeight: 2.8, scoringMode: 'linear',      freeRate: 0 },
   'unearned-intensity':       { ruleWeight: 2.7, scoringMode: 'diminishing', freeRate: 0.5 },
+  'counterfeit-mechanism':    { ruleWeight: 2.6, scoringMode: 'diminishing', freeRate: 0.5 },
   'era-opener':               { ruleWeight: 2.9, scoringMode: 'threshold',   freeRate: 0.5 },
   'stacked-intensifiers':     { ruleWeight: 2.4, scoringMode: 'linear',      freeRate: 0 },
 

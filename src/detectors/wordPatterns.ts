@@ -1355,8 +1355,10 @@ export function detectInlineEmphasis(text: string): Violation[] {
 
   const boldRe = /\*\*([^*\n]{1,60})\*\*/g
   const italicRe = /(?<!\*)\*(?![\s*])([^*\n]{1,60})\*(?!\*)/g
+  const boldUnderscoreRe = /(?<![\w_])__([^_\n]{1,60})__(?![\w_])/g
+  const italicUnderscoreRe = /(?<![\w_])_(?![\s_])([^_\n]{1,60})_(?![\w_])/g
 
-  for (const re of [boldRe, italicRe]) {
+  for (const re of [boldRe, italicRe, boldUnderscoreRe, italicUnderscoreRe]) {
     let m: RegExpExecArray | null
     while ((m = re.exec(text)) !== null) {
       // Skip if this is at the start of a bullet line (bold-first-bullets handles those)

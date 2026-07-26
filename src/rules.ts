@@ -1079,6 +1079,22 @@ export const RULES: ViolationRule[] = [
     llmDirective: 'Do not dramatize neutral content — no personified processes ("Evaporation is failing"), no menace aimed at the reader, no intensity the information does not earn.',
     ...RULE_SCORING['unearned-intensity'],
   },
+  {
+    id: 'counterfeit-mechanism',
+    name: 'Counterfeit Mechanism',
+    category: 'framing',
+    description: 'A sentence with the grammar of an explanation but no mechanism inside it — re-describing the previous claim in a more technical register ("The system is built for throughput") or smuggling in a designer with agentless verbs ("has tuned the immune system").',
+    tip: 'Delete the sentence and see whether any causal information disappears. If only the technical register goes, it was never an explanation — state the actual mechanism or cut it.',
+    canRemove: true,
+    color: '#0d9488',
+    bgColor: 'rgba(13,148,136,0.15)',
+    requiresLLM: true,
+    llmTier: 'sentence',
+    llmDetectionHint: 'A sentence that re-describes the immediately preceding claim in a more technical or mechanical register without adding any causal content — the grammar of an explanation with nothing explanatory inside it. Diagnostic: delete the sentence. If no causal information is lost and only a register upgrade disappears, flag it. Surface forms: (a) engineered-system reframing of a process nobody designed ("Food moves through quickly. The system is built for throughput."); (b) agentless design verbs that smuggle in a designer ("a lifetime of exposure has tuned the immune system", "your cardiovascular system is being primed", "your cooling system is being limited" — tuned, primed, limited by whom?); (c) renaming a plain fact with an abstract label and presenting the label as its cause. Do NOT flag a sentence that names a real mechanism, adds a genuinely new causal step, or introduces a term the piece then uses to make a prediction. Do NOT flag technical vocabulary that is literally accurate for an actually-designed system ("the engine was tuned", "the pump is being primed"). The test is whether the new vocabulary licenses a prediction the plain statement did not.',
+    rewriteHint: 'Cut sentences that restate the previous claim in a more technical register without adding a mechanism, or replace them with the actual causal step.',
+    llmDirective: 'Do not re-describe a claim in a more technical or engineered register without adding a mechanism ("The system is built for throughput") — state the actual cause or say nothing.',
+    ...RULE_SCORING['counterfeit-mechanism'],
+  },
 
   // ── Document-level (Sonnet) ───────────────────────────────────────────────
   {

@@ -1752,6 +1752,15 @@ describe('detectInlineEmphasis', () => {
   it('fires via runClientDetectors', () => {
     assertFires(runClientDetectors('The process is **critically important** for success.'), 'inline-emphasis')
   })
+  it('flags _italic_ underscore mid-sentence', () => {
+    assertFires(detectInlineEmphasis('The key insight is _surprisingly simple_ once you see it.'), 'inline-emphasis')
+  })
+  it('flags __bold__ underscore mid-sentence', () => {
+    assertFires(detectInlineEmphasis('Your heart rate goes from 56 to 113 bpm, but __quickly returns to normal__.'), 'inline-emphasis')
+  })
+  it('does NOT treat snake_case identifiers as underscore emphasis', () => {
+    assertSilent(detectInlineEmphasis('Set the my_variable_name field before calling save_record_now in prod.'), 'inline-emphasis')
+  })
 })
 
 // ── Code regions are never scanned ─────────────────────────────────────────
